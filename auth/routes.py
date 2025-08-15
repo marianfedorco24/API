@@ -1,7 +1,9 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
 import sqlite3
 import os
 import bcrypt
+import secrets
+import time
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -35,7 +37,8 @@ def signup():
 
     # Check if email already registered
     c.execute("SELECT id FROM users WHERE email = ?", (email,))
-    if c.fetchone():
+    user = c.fetchone()
+    if user:
         conn.close()
         return jsonify({"error": "User with this email already exists."}), 409
 
@@ -46,10 +49,39 @@ def signup():
 
     # Insert new user record
     c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (email, hashed_pw_str))
+    user_id = c.lastrowid
+
+    # insert new session
+    session_id = secrets.token_hex(32)
+
+    session_lifespan_seconds = 30 * 24 * 60 * 60
+    time_now = int(time.time())
+    expiry = time_now + session_lifespan_seconds
+
+    c.execute("INSERT INTO sessions (sid, uid, expiry) VALUES (?, ?, ?)", (session_id, user_id, expiry))
     conn.commit()
     conn.close()
 
-    return jsonify({"message": "User created successfully."}), 201
+    response = make_response(jsonify({
+        "message": "Signup successful.",
+        "user": {
+            "id": user_id,
+            "email": email
+        }
+    }))
+    response.set_cookie(
+        "session",
+        session_id,
+        httponly = True,
+        # WHEN DEPLOYING, SET IT TO TRUE!!!!!!!!
+        secure = False,
+        samesite = "None",
+        # WHEN DEPLOYING, SET IT TO fedorco.dev
+        domain = "127.0.0.1",
+        max_age = session_lifespan_seconds
+    )
+
+    return response
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
@@ -80,15 +112,39 @@ def login():
     password_db_str = user["password"]
     password_db_bytes = password_db_str.encode("utf-8")
 
+    # if login is successful
     if bcrypt.checkpw(password_bytes, password_db_bytes):
-        # Normally you would create and return a JWT or session token here
-        # For now, return dummy token for simplicity
-        dummy_token = "your-generated-token-here"
+        session_id = secrets.token_hex(32)
 
-        return jsonify({
+        session_lifespan_seconds = 30 * 24 * 60 * 60
+        time_now = int(time.time())
+        expiry = time_now + session_lifespan_seconds
+
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("INSERT INTO sessions (sid, uid, expiry) VALUES (?, ?, ?)", (session_id, user["id"], expiry))
+        conn.commit()
+        conn.close()
+
+        response = make_response(jsonify({
             "message": "Login successful.",
-            "token": dummy_token,
-            "user": {"id": user["id"], "email": user["email"]}
-        }), 200
+            "user": {
+                "id": user["id"],
+                "email": user["email"]
+            }
+        }))
+        response.set_cookie(
+            "session",
+            session_id,
+            httponly = True,
+            # WHEN DEPLOYING, SET IT TO TRUE!!!!!!!!
+            secure = False,
+            samesite = "None",
+            # WHEN DEPLOYING, SET IT TO fedorco.dev
+            domain = "127.0.0.1",
+            max_age = session_lifespan_seconds
+        )
+
+        return response
     else:
         return jsonify({"error": "Invalid email or password."}), 401
