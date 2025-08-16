@@ -43,4 +43,4 @@ def getinfo():
         return jsonify({"error": "User not found."}), 404
 
     user_dict = dict(user_info)
-    return jsonify({"user_info": user_dict}), 200
+    return jsonify(user_dict), 200

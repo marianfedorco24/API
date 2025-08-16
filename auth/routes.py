@@ -139,10 +139,12 @@ def login():
             httponly = True,
             # WHEN DEPLOYING, SET IT TO TRUE!!!!!!!!
             secure = False,
-            samesite = "None",
+            # later set to None
+            samesite="Lax",
             # WHEN DEPLOYING, SET IT TO fedorco.dev
-            domain = "127.0.0.1",
-            max_age = session_lifespan_seconds
+            # domain = "127.0.0.1",
+            max_age = session_lifespan_seconds,
+            path="/"
         )
 
         return response
@@ -169,10 +171,12 @@ def logout():
         httponly=True,
     # LATER SET IT TO TRUE!!!
         secure=False,
-        samesite="None",
+        # later set to None
+        samesite="Lax",
         # LATER SET TO fedorco.dev
-        domain="127.0.0.1",
-        expires=0
+        # domain="127.0.0.1",
+        expires=0,
+        path="/"
     )
 
     return response
