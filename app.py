@@ -11,6 +11,10 @@ app.secret_key = "your-secret-key"  # Needed if you use sessions or flash
 from auth.routes import auth_bp  # Import your blueprint
 app.register_blueprint(auth_bp, url_prefix="/auth")
 
+# Register the user blueprint under /user URL prefix
+from user_info.routes import user_bp  # Import your blueprint
+app.register_blueprint(user_bp, url_prefix="/user")
+
 @app.route("/")
 def index():
     return "Welcome to the portfolio main page!"

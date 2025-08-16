@@ -9,7 +9,7 @@ c = conn.cursor()
 # CREATE USERS TABLE
 c.execute("""
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uid INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         google_id TEXT UNIQUE

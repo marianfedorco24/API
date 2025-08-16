@@ -36,7 +36,7 @@ def signup():
     c = conn.cursor()
 
     # Check if email already registered
-    c.execute("SELECT id FROM users WHERE email = ?", (email,))
+    c.execute("SELECT uid FROM users WHERE email = ?", (email,))
     user = c.fetchone()
     if user:
         conn.close()
@@ -65,7 +65,7 @@ def signup():
     response = make_response(jsonify({
         "message": "Signup successful.",
         "user": {
-            "id": user_id,
+            "uid": user_id,
             "email": email
         }
     }))
@@ -122,14 +122,14 @@ def login():
 
         conn = get_db()
         c = conn.cursor()
-        c.execute("INSERT INTO sessions (sid, uid, expiry) VALUES (?, ?, ?)", (session_id, user["id"], expiry))
+        c.execute("INSERT INTO sessions (sid, uid, expiry) VALUES (?, ?, ?)", (session_id, user["uid"], expiry))
         conn.commit()
         conn.close()
 
         response = make_response(jsonify({
             "message": "Login successful.",
             "user": {
-                "id": user["id"],
+                "uid": user["uid"],
                 "email": user["email"]
             }
         }))
