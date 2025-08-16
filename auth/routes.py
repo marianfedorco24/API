@@ -148,3 +148,31 @@ def login():
         return response
     else:
         return jsonify({"error": "Invalid email or password."}), 401
+    
+@auth_bp.route("/logout", methods=["POST"])
+def logout():
+    session_id = request.cookies.get("session")
+
+    if not session_id:
+        return jsonify({"error": "No active session."}), 400
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("DELETE FROM sessions WHERE sid = ?", (session_id,))
+    conn.commit()
+    conn.close()
+
+    response = make_response(jsonify({"message": "Logout successful."}))
+    response.set_cookie(
+        "session",
+        "",
+        httponly=True,
+    # LATER SET IT TO TRUE!!!
+        secure=False,
+        samesite="None",
+        # LATER SET TO fedorco.dev
+        domain="127.0.0.1",
+        expires=0
+    )
+
+    return response
