@@ -3,7 +3,7 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 
-CORS(app, supports_credentials=True, origins=["http://127.0.0.1:5500"])
+CORS(app, supports_credentials=True, origins="http://127.0.0.1:5500")
 
 app.secret_key = "your-secret-key"  # Needed if you use sessions or flash
 

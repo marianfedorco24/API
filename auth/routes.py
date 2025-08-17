@@ -75,9 +75,10 @@ def signup():
         httponly = True,
         # WHEN DEPLOYING, SET IT TO TRUE!!!!!!!!
         secure = False,
-        samesite = "None",
+        # later set to None
+        samesite="Lax",
         # WHEN DEPLOYING, SET IT TO fedorco.dev
-        domain = "127.0.0.1",
+        # domain = "127.0.0.1",
         max_age = session_lifespan_seconds
     )
 
@@ -85,10 +86,6 @@ def signup():
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    """
-    Receives JSON data with "email" and "password" to authenticate a user.
-    Returns JSON with success message and a dummy token or error message.
-    """
     data = request.get_json()
 
     email = data.get("email")
@@ -165,6 +162,104 @@ def logout():
     conn.close()
 
     response = make_response(jsonify({"message": "Logout successful."}))
+    response.set_cookie(
+        "session",
+        "",
+        httponly=True,
+    # LATER SET IT TO TRUE!!!
+        secure=False,
+        # later set to None
+        samesite="Lax",
+        # LATER SET TO fedorco.dev
+        # domain="127.0.0.1",
+        expires=0,
+        path="/"
+    )
+
+    return response
+
+@auth_bp.route("/change-password", methods=["POST"])
+def change_password():
+    session_id = request.cookies.get("session")
+    if not session_id:
+        return jsonify({"error": "No active session."}), 400
+
+    data = request.get_json()
+    password_new = data.get("password_new")
+    if not password_new:
+        return jsonify({"error": "Password is missing."}), 400
+
+    # Find the user from session
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT uid FROM sessions WHERE sid = ?", (session_id,))
+    session_obj = c.fetchone()
+    if not session_obj:
+        conn.close()
+        return jsonify({"error": "Invalid session."}), 401
+    user_id = session_obj["uid"]
+
+    # Hash the new password securely
+    password_new_bytes = password_new.encode("utf-8")
+    hashed_pw_new = bcrypt.hashpw(password_new_bytes, bcrypt.gensalt())
+    hashed_pw_new_str = hashed_pw_new.decode("utf-8")
+
+    # update the password in DB
+    c.execute("UPDATE users SET password = ? WHERE uid = ?", (hashed_pw_new_str, user_id))
+    conn.commit()
+
+    # delete old sessions
+    c.execute("DELETE FROM sessions where uid = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+    response = make_response(jsonify({"message": "Password changed successfully. Please log in again."}))
+    response.set_cookie(
+        "session",
+        "",
+        httponly=True,
+    # LATER SET IT TO TRUE!!!
+        secure=False,
+        # later set to None
+        samesite="Lax",
+        # LATER SET TO fedorco.dev
+        # domain="127.0.0.1",
+        expires=0,
+        path="/"
+    )
+
+    return response
+
+@auth_bp.route("/delete-account", methods=["POST"])
+def delete_account():
+    session_id = request.cookies.get("session")
+
+    if not session_id:
+        return jsonify({"error": "No active session."}), 400
+
+    conn = get_db()
+    c = conn.cursor()
+
+    user_id_obj = c.execute("SELECT uid FROM sessions WHERE sid = ?", (session_id,)).fetchone()
+
+    if not user_id_obj:
+        conn.close()
+        return jsonify({"error": "Invalid session."}), 401
+    
+    user_id = user_id_obj["uid"]
+    user_obj = c.execute("SELECT * FROM users WHERE uid = ?", (user_id,)).fetchone()
+    if not user_obj:
+        conn.close()
+        return jsonify({"error": "User not found."}), 404
+    user_email = user_obj["email"]
+
+    c.execute("DELETE FROM sessions WHERE uid = ?", (user_id,))
+    c.execute("DELETE FROM users WHERE uid = ?", (user_id,))
+
+    conn.commit()
+    conn.close()
+
+    response = make_response(jsonify({"message": f"Account {user_email} deleted successfully."}))
     response.set_cookie(
         "session",
         "",
