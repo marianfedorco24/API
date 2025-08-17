@@ -1,3 +1,4 @@
 .DS_Store
 *.db
 fedorcodev+api.code-workspace
+auth/auth.db
