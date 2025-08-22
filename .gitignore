@@ -2,3 +2,4 @@
 *.db
 fedorcodev+api.code-workspace
 auth/auth.db
+auth/auth.db

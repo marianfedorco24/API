@@ -20,10 +20,6 @@ def get_db():
 
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
-    """
-    Receives JSON data with "email" and "password" to register a new user.
-    Returns JSON response with success or error message.
-    """
     data = request.get_json()
 
     # Validate input presence
