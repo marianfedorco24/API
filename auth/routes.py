@@ -142,14 +142,14 @@ def login():
 
         return response
     else:
-        return jsonify({"error": "Invalid email or password."}), 401
+        return jsonify({"error": "Invalid email or password."}), 400
     
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
     session_id = request.cookies.get("session")
 
     if not session_id:
-        return jsonify({"error": "No active session."}), 400
+        return jsonify({"error": "No active session."}), 401
 
     conn = get_db()
     c = conn.cursor()
@@ -178,7 +178,7 @@ def logout():
 def change_password():
     session_id = request.cookies.get("session")
     if not session_id:
-        return jsonify({"error": "No active session."}), 400
+        return jsonify({"error": "No active session."}), 401
 
     data = request.get_json()
     password_new = data.get("password_new")
@@ -231,7 +231,7 @@ def delete_account():
     session_id = request.cookies.get("session")
 
     if not session_id:
-        return jsonify({"error": "No active session."}), 400
+        return jsonify({"error": "No active session."}), 401
 
     conn = get_db()
     c = conn.cursor()

@@ -20,7 +20,7 @@ def get_db():
     return conn
 
 @user_bp.route("/getinfo", methods=["GET"])
-def getinfo():
+def getInfo():
     session_id = request.cookies.get("session")
 
     if not session_id:
@@ -32,7 +32,7 @@ def getinfo():
     user_id_obj = c.fetchone()
     if not user_id_obj:
         conn.close()
-        return jsonify({"error": "Invalid session!"}), 400
+        return jsonify({"error": "Invalid session!"}), 401
     user_id = user_id_obj["uid"]
     
     c.execute("SELECT uid, email FROM users WHERE uid = ?", (user_id,))
