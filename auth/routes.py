@@ -4,6 +4,7 @@ import os
 import bcrypt
 import secrets
 import time
+import re
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -18,15 +19,32 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def check_input(input, type):
+    input_trimmed = input.strip()
+    
+    if type == "email":
+        if len(input_trimmed) < 5:
+            return False
+        email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        return bool(re.match(email_regex, input_trimmed))
+    
+    else:
+        password_regex = r'^[A-Za-z0-9 !@#$%^&*._-]{5,50}$'
+        return bool(re.match(password_regex, input_trimmed))
+    
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
     data = request.get_json()
 
     # Validate input presence
-    email = data.get("email")
-    password = data.get("password")
+    email = data.get("email").strip()
+    password = data.get("password").strip()
     if not email or not password:
         return jsonify({"error": "Email and password are required."}), 400
+    
+    # Validate input validity
+    if not check_input(email, "email") or not check_input(password, "password"):
+        return jsonify({"error": "Invalid credentials"}), 406
 
     conn = get_db()
     c = conn.cursor()
@@ -84,11 +102,18 @@ def signup():
 def login():
     data = request.get_json()
 
-    email = data.get("email")
-    password = data.get("password")
-    password_bytes = password.encode("utf-8")
+    email = data.get("email").strip()
+    password = data.get("password").strip()
+
     if not email or not password:
         return jsonify({"error": "Email and password are required."}), 400
+
+    # Validate input validity
+    if not check_input(email, "email") or not check_input(password, "password"):
+        return jsonify({"error": "Invalid credentials"}), 406
+
+    password_bytes = password.encode("utf-8")
+    
 
     conn = get_db()
     c = conn.cursor()
@@ -182,6 +207,11 @@ def change_password():
 
     data = request.get_json()
     password_new = data.get("password_new")
+
+    # Validate input validity
+    if not check_input(password_new, "password"):
+        return jsonify({"error": "Invalid credentials"}), 406
+
     if not password_new:
         return jsonify({"error": "Password is missing."}), 400
 
