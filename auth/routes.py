@@ -1,10 +1,37 @@
-from flask import Blueprint, request, jsonify, make_response
+from flask import Blueprint, request, jsonify, make_response, url_for, redirect
 import sqlite3
 import os
 import bcrypt
 import secrets
 import time
 import re
+from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
+
+oauth = OAuth()
+
+load_dotenv()
+
+# google = oauth.register(
+#     name="google",
+#     client_id=os.getenv("GOOGLE_CLIENT_ID"),
+#     client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+#     access_token_url="https://oauth2.googleapis.com/token",
+#     authorize_url="https://accounts.google.com/o/oauth2/auth",
+#     api_base_url="https://www.googleapis.com/oauth2/v1/",
+#     client_kwargs={"scope": "openid email profile"},
+# )
+
+google = oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
+
+def init_oauth(app):
+    oauth.init_app(app)
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -319,4 +346,73 @@ def delete_account():
         path="/"
     )
 
+    return response
+
+@auth_bp.route("/google/login")
+def google_login():
+    redirect_uri = url_for("auth.google_callback", _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@auth_bp.route("/google/callback")
+def google_callback():
+    token = google.authorize_access_token()
+    user_info = google.userinfo()
+
+    email = user_info["email"]
+    google_id = user_info["sub"]
+
+    # Check if user already exists
+    conn = get_db()
+    try:
+        c = conn.cursor()
+
+        # check if user exists by google_id
+        c.execute("SELECT * FROM users WHERE google_id = ?", (google_id,))
+        user = c.fetchone()
+
+        if not user:
+            # check if the user exists by email
+            c.execute("SELECT * FROM users WHERE email = ?", (email,))
+            user = c.fetchone()
+            if user:
+                # link the google_id to the existing account
+                c.execute("UPDATE users SET google_id = ? WHERE email = ?", (google_id, email))
+                conn.commit()
+            else:
+                # create a new user
+                c.execute("INSERT INTO users (email, password, google_id) VALUES (?, ?, ?)", (email, None, google_id))
+                conn.commit()
+                c.execute("SELECT * FROM users WHERE google_id = ?", (google_id,))
+                user = c.fetchone()
+    finally:
+        conn.close()
+
+    # Create a session for this user
+    session_id = secrets.token_hex(32)
+    session_lifespan_seconds = 30 * 24 * 60 * 60
+    expiry = int(time.time()) + session_lifespan_seconds  # 30 days
+
+    conn = get_db()
+    try:
+        c = conn.cursor()
+        c.execute("INSERT INTO sessions (sid, uid, expiry) VALUES (?, ?, ?)", (session_id, user["uid"], expiry))
+        conn.commit()
+    finally:
+        conn.close()
+
+    response = make_response(redirect("http://127.0.0.1:5500/index.html"))
+
+    response.set_cookie(
+        "session",
+        session_id,
+        httponly = True,
+        # WHEN DEPLOYING, SET IT TO TRUE!!!!!!!!
+        secure = False,
+        # later set to None
+        samesite="Lax",
+        # WHEN DEPLOYING, SET IT TO fedorco.dev
+        # domain = "127.0.0.1",
+        max_age = session_lifespan_seconds,
+        path="/"
+    )
     return response

@@ -11,7 +11,7 @@ c.execute("""
     CREATE TABLE IF NOT EXISTS users (
         uid INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
+        password TEXT,
         google_id TEXT UNIQUE
     )
 """)
