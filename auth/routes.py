@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, make_response, url_for, redirect
+from flask import Blueprint, request, jsonify, make_response, url_for, redirect, current_app
 import sqlite3
 import os
 import bcrypt
@@ -11,16 +11,6 @@ from dotenv import load_dotenv
 oauth = OAuth()
 
 load_dotenv()
-
-# google = oauth.register(
-#     name="google",
-#     client_id=os.getenv("GOOGLE_CLIENT_ID"),
-#     client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-#     access_token_url="https://oauth2.googleapis.com/token",
-#     authorize_url="https://accounts.google.com/o/oauth2/auth",
-#     api_base_url="https://www.googleapis.com/oauth2/v1/",
-#     client_kwargs={"scope": "openid email profile"},
-# )
 
 google = oauth.register(
     name="google",
@@ -91,6 +81,7 @@ def signup():
         # check whether the account was already signed in by google
         if user and not user["password"]:
             c.execute("UPDATE users SET password = ? WHERE uid = ?", (hashed_pw_str, user["uid"]))
+            conn.commit()
         elif user:
             return jsonify({"error": "User with this email already exists."}), 409
         else:
@@ -98,7 +89,7 @@ def signup():
             c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (email, hashed_pw_str))
             conn.commit()
     except Exception as e:
-        print(f"DB error: {e}")
+        current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
         conn.close()
@@ -134,7 +125,7 @@ def login():
         c.execute("SELECT * FROM users WHERE email = ?", (email,))
         user = c.fetchone()
     except Exception as e:
-        print(f"DB error: {e}")
+        current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
         conn.close()
@@ -166,7 +157,7 @@ def login():
         c.execute("INSERT INTO sessions (sid, uid, expiry) VALUES (?, ?, ?)", (session_id, user["uid"], expiry))
         conn.commit()
     except Exception as e:
-        print(f"DB error: {e}")
+        current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
         conn.close()
@@ -219,7 +210,7 @@ def logout():
         c.execute("DELETE FROM sessions WHERE sid = ?", (session_id,))
         conn.commit()
     except Exception as e:
-        print(f"DB error: {e}")
+        current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
         conn.close()
@@ -282,7 +273,7 @@ def change_password():
 
         conn.commit()
     except Exception as e:
-        print(f"DB error: {e}")
+        current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
         conn.close()
@@ -330,7 +321,7 @@ def delete_account():
 
         conn.commit()
     except Exception as e:
-        print(f"DB error: {e}")
+        current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
         conn.close()
