@@ -80,19 +80,23 @@ def signup():
         c = conn.cursor()
 
         # Check if email already registered
-        c.execute("SELECT uid FROM users WHERE email = ?", (email,))
+        c.execute("SELECT * FROM users WHERE email = ?", (email,))
         user = c.fetchone()
-        if user:
-            return jsonify({"error": "User with this email already exists."}), 409
 
         # Hash password securely
         password_bytes = password.encode("utf-8")
         hashed_pw = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
         hashed_pw_str = hashed_pw.decode("utf-8")
 
-        # Insert new user record
-        c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (email, hashed_pw_str))
-        conn.commit()
+        # check whether the account was already signed in by google
+        if user and not user["password"]:
+            c.execute("UPDATE users SET password = ? WHERE uid = ?", (hashed_pw_str, user["uid"]))
+        elif user:
+            return jsonify({"error": "User with this email already exists."}), 409
+        else:
+            # Insert new user record
+            c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (email, hashed_pw_str))
+            conn.commit()
     except Exception as e:
         print(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
@@ -135,7 +139,7 @@ def login():
     finally:
         conn.close()
 
-    if not user:
+    if not user or not user["password"]:
         return jsonify({"error": "Invalid email or password."}), 401
 
     # Check password hash
