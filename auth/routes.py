@@ -9,7 +9,7 @@ from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 
 # the base url
-url_base = "http://127.0.0.1:5000"
+url_base = "https://api.fedorco.dev"
 
 oauth = OAuth()
 
