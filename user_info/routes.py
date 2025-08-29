@@ -3,6 +3,9 @@ import sqlite3
 import os
 import time
 
+# set the base url
+url_base = "http://127.0.0.1:5000"
+
 user_bp = Blueprint("user", __name__)
 
 # Path to SQLite database file for auth
