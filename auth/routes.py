@@ -382,7 +382,7 @@ def delete_account():
 
 @auth_bp.route("/google/login")
 def google_login():
-    redirect_uri = url_for("auth.google_callback", _external=True)
+    redirect_uri = url_for("auth.google_callback", _external=True, _scheme="https", _server="api.fedorco.dev")
     return google.authorize_redirect(redirect_uri)
 
 @auth_bp.route("/google/callback")
