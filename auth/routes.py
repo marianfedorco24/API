@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, make_response, url_for, redirect, current_app
+from flask import Blueprint, request, jsonify, make_response, url_for, redirect, current_app, abort
 import sqlite3
 import os
 import bcrypt
@@ -48,6 +48,30 @@ def check_input(input, type):
     else:
         password_regex = r'^[A-Za-z0-9 !@#$%^&*._-]{5,50}$'
         return bool(re.fullmatch(password_regex, input_trimmed))
+    
+def validate_session(sid):
+    conn = get_db()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT * FROM sessions WHERE sid = ?", (sid,))
+        session = c.fetchone()
+        if not session:
+            return False
+        sid_expiry = session["expiry"]
+        time_now = int(time.time())
+
+        if time_now > int(sid_expiry):
+            c.execute("DELETE FROM sessions WHERE sid = ?", (sid,))
+            conn.commit()
+            return False
+        else:
+            return True
+    except Exception as e:
+        current_app.logger.info(f"DB error: {e}")
+        abort(500, description="Database error.")
+    finally:
+        conn.close()
+
     
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
@@ -203,19 +227,22 @@ def logout():
 
     if not session_id:
         return jsonify({"error": "No active session."}), 401
+    
+    if validate_session(session_id):
+        conn = get_db()
+        try:
+            c = conn.cursor()
+            c.execute("DELETE FROM sessions WHERE sid = ?", (session_id,))
+            conn.commit()
+        except Exception as e:
+            current_app.logger.info(f"DB error: {e}")
+            return jsonify({"error": "Database error."}), 500
+        finally:
+            conn.close()
 
-    conn = get_db()
-    try:
-        c = conn.cursor()
-        c.execute("DELETE FROM sessions WHERE sid = ?", (session_id,))
-        conn.commit()
-    except Exception as e:
-        current_app.logger.info(f"DB error: {e}")
-        return jsonify({"error": "Database error."}), 500
-    finally:
-        conn.close()
-
-    response = make_response(jsonify({"message": "Logout successful."}))
+        response = make_response(jsonify({"message": "Logout successful."}))
+    else:
+        response = make_response(jsonify({"error": "Invalid session."}), 401)
     response.set_cookie(
         "session",
         "",
@@ -227,9 +254,9 @@ def logout():
         # LATER SET TO fedorco.dev
         # domain="127.0.0.1",
         expires=0,
+        max_age=0,
         path="/"
     )
-
     return response
 
 @auth_bp.route("/change-password", methods=["POST"])
@@ -237,48 +264,51 @@ def change_password():
     session_id = request.cookies.get("session")
     if not session_id:
         return jsonify({"error": "No active session."}), 401
+    
+    if validate_session(session_id):
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid JSON."}), 406
+        password_new = (data.get("password_new") or "").strip()
 
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Invalid JSON."}), 406
-    password_new = (data.get("password_new") or "").strip()
+        if not password_new:
+            return jsonify({"error": "Password is missing."}), 400
 
-    if not password_new:
-        return jsonify({"error": "Password is missing."}), 400
+        # Validate input validity
+        if not check_input(password_new, "password"):
+            return jsonify({"error": "Invalid credentials"}), 406
 
-    # Validate input validity
-    if not check_input(password_new, "password"):
-        return jsonify({"error": "Invalid credentials"}), 406
+        # Find the user from session
+        conn = get_db()
+        try:
+            c = conn.cursor()
+            c.execute("SELECT uid FROM sessions WHERE sid = ?", (session_id,))
+            session_obj = c.fetchone()
+            if not session_obj:
+                return jsonify({"error": "Invalid session."}), 401
+            user_id = session_obj["uid"]
 
-    # Find the user from session
-    conn = get_db()
-    try:
-        c = conn.cursor()
-        c.execute("SELECT uid FROM sessions WHERE sid = ?", (session_id,))
-        session_obj = c.fetchone()
-        if not session_obj:
-            return jsonify({"error": "Invalid session."}), 401
-        user_id = session_obj["uid"]
+            # Hash the new password securely
+            password_new_bytes = password_new.encode("utf-8")
+            hashed_pw_new = bcrypt.hashpw(password_new_bytes, bcrypt.gensalt())
+            hashed_pw_new_str = hashed_pw_new.decode("utf-8")
 
-        # Hash the new password securely
-        password_new_bytes = password_new.encode("utf-8")
-        hashed_pw_new = bcrypt.hashpw(password_new_bytes, bcrypt.gensalt())
-        hashed_pw_new_str = hashed_pw_new.decode("utf-8")
+            # update the password in DB
+            c.execute("UPDATE users SET password = ? WHERE uid = ?", (hashed_pw_new_str, user_id))
 
-        # update the password in DB
-        c.execute("UPDATE users SET password = ? WHERE uid = ?", (hashed_pw_new_str, user_id))
+            # delete old sessions
+            c.execute("DELETE FROM sessions where uid = ?", (user_id,))
 
-        # delete old sessions
-        c.execute("DELETE FROM sessions where uid = ?", (user_id,))
+            conn.commit()
+        except Exception as e:
+            current_app.logger.info(f"DB error: {e}")
+            return jsonify({"error": "Database error."}), 500
+        finally:
+            conn.close()
+        response = make_response(jsonify({"message": "Password changed successfully. Please log in again."}))
+    else:
+        response = make_response(jsonify({"error": "Invalid session."}), 401)
 
-        conn.commit()
-    except Exception as e:
-        current_app.logger.info(f"DB error: {e}")
-        return jsonify({"error": "Database error."}), 500
-    finally:
-        conn.close()
-
-    response = make_response(jsonify({"message": "Password changed successfully. Please log in again."}))
     response.set_cookie(
         "session",
         "",
@@ -290,9 +320,9 @@ def change_password():
         # LATER SET TO fedorco.dev
         # domain="127.0.0.1",
         expires=0,
+        max_age=0,
         path="/"
     )
-
     return response
 
 @auth_bp.route("/delete-account", methods=["POST"])
@@ -301,32 +331,36 @@ def delete_account():
 
     if not session_id:
         return jsonify({"error": "No active session."}), 401
+    
+    if validate_session(session_id):
+        conn = get_db()
+        try:
+            c = conn.cursor()
+            user_id_obj = c.execute("SELECT uid FROM sessions WHERE sid = ?", (session_id,)).fetchone()
 
-    conn = get_db()
-    try:
-        c = conn.cursor()
-        user_id_obj = c.execute("SELECT uid FROM sessions WHERE sid = ?", (session_id,)).fetchone()
+            if not user_id_obj:
+                return jsonify({"error": "Invalid session."}), 401
+            
+            user_id = user_id_obj["uid"]
+            user_obj = c.execute("SELECT * FROM users WHERE uid = ?", (user_id,)).fetchone()
+            if not user_obj:
+                return jsonify({"error": "User not found."}), 404
+            user_email = user_obj["email"]
 
-        if not user_id_obj:
-            return jsonify({"error": "Invalid session."}), 401
-        
-        user_id = user_id_obj["uid"]
-        user_obj = c.execute("SELECT * FROM users WHERE uid = ?", (user_id,)).fetchone()
-        if not user_obj:
-            return jsonify({"error": "User not found."}), 404
-        user_email = user_obj["email"]
+            c.execute("DELETE FROM sessions WHERE uid = ?", (user_id,))
+            c.execute("DELETE FROM users WHERE uid = ?", (user_id,))
 
-        c.execute("DELETE FROM sessions WHERE uid = ?", (user_id,))
-        c.execute("DELETE FROM users WHERE uid = ?", (user_id,))
+            conn.commit()
+        except Exception as e:
+            current_app.logger.info(f"DB error: {e}")
+            return jsonify({"error": "Database error."}), 500
+        finally:
+            conn.close()
 
-        conn.commit()
-    except Exception as e:
-        current_app.logger.info(f"DB error: {e}")
-        return jsonify({"error": "Database error."}), 500
-    finally:
-        conn.close()
+        response = make_response(jsonify({"message": f"Account {user_email} deleted successfully."}))
+    else:
+        response = make_response(jsonify({"error": "Invalid session."}), 401)
 
-    response = make_response(jsonify({"message": f"Account {user_email} deleted successfully."}))
     response.set_cookie(
         "session",
         "",
@@ -338,9 +372,9 @@ def delete_account():
         # LATER SET TO fedorco.dev
         # domain="127.0.0.1",
         expires=0,
+        max_age=0,
         path="/"
     )
-
     return response
 
 @auth_bp.route("/google/login")
