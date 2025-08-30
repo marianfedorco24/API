@@ -418,7 +418,7 @@ def google_callback():
     finally:
         conn.close()
 
-    response = make_response(redirect(url_base))
+    response = make_response(redirect(url_base + "?s=g"))
 
     response.set_cookie(
         "session",
