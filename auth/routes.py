@@ -202,7 +202,7 @@ def login():
             httponly = True,
             secure = True,
             samesite="None",
-            domain = "https://fedorco.dev",
+            domain = ".fedorco.dev",
             max_age = session_lifespan_seconds,
             path="/"
         )
@@ -213,7 +213,7 @@ def login():
             httponly = True,
             secure = True,
             samesite="None",
-            domain = "https://fedorco.dev",
+            domain = ".fedorco.dev",
             path="/"
         )
     return response
