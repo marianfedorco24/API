@@ -3,7 +3,7 @@ from flask_cors import CORS
 from auth.routes import init_oauth
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins="http://127.0.0.1:5500")
+CORS(app, supports_credentials=True, origins="https://fedorco.dev/")
 app.secret_key = "your-secret-key"  # Needed if you use sessions or flash
 
 # Initialize oAuth
