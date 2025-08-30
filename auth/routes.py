@@ -245,12 +245,9 @@ def logout():
         "session",
         "",
         httponly=True,
-    # LATER SET IT TO TRUE!!!
-        secure=False,
-        # later set to None
-        samesite="Lax",
-        # LATER SET TO fedorco.dev
-        # domain="127.0.0.1",
+        secure=True,
+        samesite="None",
+        domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
@@ -311,12 +308,9 @@ def change_password():
         "session",
         "",
         httponly=True,
-    # LATER SET IT TO TRUE!!!
-        secure=False,
-        # later set to None
-        samesite="Lax",
-        # LATER SET TO fedorco.dev
-        # domain="127.0.0.1",
+        secure=True,
+        samesite="None",
+        domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
@@ -363,12 +357,9 @@ def delete_account():
         "session",
         "",
         httponly=True,
-    # LATER SET IT TO TRUE!!!
-        secure=False,
-        # later set to None
-        samesite="Lax",
-        # LATER SET TO fedorco.dev
-        # domain="127.0.0.1",
+        secure=True,
+        samesite="None",
+        domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
@@ -433,12 +424,9 @@ def google_callback():
         "session",
         session_id,
         httponly = True,
-        # WHEN DEPLOYING, SET IT TO TRUE!!!!!!!!
-        secure = False,
-        # later set to None
-        samesite="Lax",
-        # WHEN DEPLOYING, SET IT TO fedorco.dev
-        # domain = "127.0.0.1",
+        secure = True,
+        samesite="None",
+        domain=".fedorco.dev",
         max_age = session_lifespan_seconds,
         path="/"
     )

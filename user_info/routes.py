@@ -73,12 +73,9 @@ def getInfo():
         "session",
         "",
         httponly=True,
-        # LATER SET IT TO TRUE!!!
-        secure=False,
-        # later set to None
-        samesite="Lax",
-        # LATER SET TO fedorco.dev
-        # domain="127.0.0.1",
+        secure=True,
+        samesite="None",
+        domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
