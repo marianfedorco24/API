@@ -200,12 +200,9 @@ def login():
             "session",
             session_id,
             httponly = True,
-            # WHEN DEPLOYING, SET IT TO TRUE!!!!!!!!
-            secure = False,
-            # later set to None
-            samesite="Lax",
-            # WHEN DEPLOYING, SET IT TO fedorco.dev
-            # domain = "127.0.0.1",
+            secure = True,
+            samesite="None",
+            domain = "https://fedorco.dev/",
             max_age = session_lifespan_seconds,
             path="/"
         )
@@ -214,12 +211,9 @@ def login():
             "session",
             session_id,
             httponly = True,
-            # WHEN DEPLOYING, SET IT TO TRUE!!!!!!!!
-            secure = False,
-            # later set to None
-            samesite="Lax",
-            # WHEN DEPLOYING, SET IT TO fedorco.dev
-            # domain = "127.0.0.1",
+            secure = True,
+            samesite="None",
+            domain = "https://fedorco.dev/",
             path="/"
         )
     return response
