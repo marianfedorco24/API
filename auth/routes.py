@@ -155,9 +155,9 @@ def signup():
             "temp_user_token",
             token,
             httponly = True,
-            secure = True,
-            samesite="None",
-            domain = ".fedorco.dev",
+            secure = False,
+            samesite="Lax",
+            # domain = ".fedorco.dev",
             max_age = token_expiry_sec,
             path="/"
         )
@@ -194,9 +194,9 @@ def verify_code():
         if not temp_user:
             return jsonify({"error": "Invalid temporary user token."}), 401
         # check whether the token is expired
-        time_now = time.time()
+        time_now = int(time.time())
         if time_now > temp_user["expiry"]:
-            c.execute("DELETE FROM temp_users WHERE token = ?", (token))
+            c.execute("DELETE FROM temp_users WHERE token = ?", (token,))
             conn.commit()
             return jsonify({"error": "Code expired."}), 410
         # check whether the code matches
@@ -211,7 +211,7 @@ def verify_code():
             conn.commit()
             return jsonify({"error": "Invalid verification code."}), 403
         c.execute("SELECT * FROM users WHERE email = ?", (temp_user["email"],))
-        user = c.fetchone
+        user = c.fetchone()
         # check whether the account was already signed in by google
         if user and not user["password"]:
             c.execute("UPDATE users SET password = ? WHERE uid = ?", (temp_user["password"], user["uid"]))
