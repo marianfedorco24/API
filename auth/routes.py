@@ -59,7 +59,7 @@ def check_input(input, type):
         return bool(re.fullmatch(email_regex, input_trimmed))
     
     else:
-        password_regex = r'^[A-Za-z0-9 !@#$%^&*._-]{5,50}$'
+        password_regex = r'^[A-Za-z0-9 !@#$%^&*._\-\?]{5,50}$'
         return bool(re.fullmatch(password_regex, input_trimmed))
     
 def validate_session(sid):
@@ -155,9 +155,9 @@ def signup():
             "temp_user_token",
             token,
             httponly = True,
-            secure = False,
-            samesite="Lax",
-            # domain = ".fedorco.dev",
+            secure = True,
+            samesite="None",
+            domain = ".fedorco.dev",
             max_age = token_expiry_sec,
             path="/"
         )
