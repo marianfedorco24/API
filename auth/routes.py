@@ -138,7 +138,7 @@ def signup():
         msg["Subject"] = "Your login code"
         msg["From"] = FROM_EMAIL
         msg["To"] = email
-        msg.set_content(f"<img src=\"https://fedorco.dev/logo/logo.png\" style=\"width:10rem;\"><br><p>Your one-time code is: <b>{code_str}</b> <br>(valid for 5 minutes)</p>")
+        msg.set_content(f"<img src=\"https://fedorco.dev/logo/logo.png\" style=\"width:10rem;\"><br><p>Your one-time code is: <b>{code_str}</b> <br>(valid for 5 minutes)</p>", subtype = "html")
 
         context = ssl.create_default_context()
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
