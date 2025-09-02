@@ -7,14 +7,23 @@ import time
 import re
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
+import smtplib, ssl
+from email.message import EmailMessage
 
 # the base url
 url_base_api = "https://api.fedorco.dev"
 url_base = "https://fedorco.dev"
 
-oauth = OAuth()
-
 load_dotenv()
+
+# email sending variables
+SMTP_HOST = "smtp-relay.brevo.com"
+SMTP_PORT = 587
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+FROM_EMAIL = "noreply@fedorco.dev"
+
+oauth = OAuth()
 
 google = oauth.register(
     name="google",
@@ -97,31 +106,125 @@ def signup():
     try:
         c = conn.cursor()
 
-        # Check if email already registered
         c.execute("SELECT * FROM users WHERE email = ?", (email,))
         user = c.fetchone()
 
+        # check if the user has already signed up using email and password
+        if user and user["email"] and user["password"]:
+            return jsonify({"error": "User with this email already exists."}), 409
+        
         # Hash password securely
         password_bytes = password.encode("utf-8")
         hashed_pw = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
         hashed_pw_str = hashed_pw.decode("utf-8")
 
-        # check whether the account was already signed in by google
-        if user and not user["password"]:
-            c.execute("UPDATE users SET password = ? WHERE uid = ?", (hashed_pw_str, user["uid"]))
-            conn.commit()
-        elif user:
-            return jsonify({"error": "User with this email already exists."}), 409
-        else:
-            # Insert new user record
-            c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (email, hashed_pw_str))
-            conn.commit()
+        # generate a 6-digit verification code
+        code_str = f"{secrets.randbelow(1000000):06}"
+        
+        code_bytes = code_str.encode("utf-8")
+        hashed_code = bcrypt.hashpw(code_bytes, bcrypt.gensalt())
+        hashed_code_str = hashed_code.decode("utf-8")
+
+        # generate an access token for the user (to be stored in a cookie)
+        token = secrets.token_hex(16)
+
+        # get the token expiry
+        token_expiry_sec = 5 * 60
+        time_now = int(time.time())
+        token_expiry = time_now + token_expiry_sec
+
+        # send a verification email
+        msg = EmailMessage()
+        msg["Subject"] = "Your login code"
+        msg["From"] = FROM_EMAIL
+        msg["To"] = email
+        msg.set_content(f"<img src=\"https://fedorco.dev/logo/logo.png\" style=\"width:10rem;\"><br><p>Your one-time code is: <b>{code_str}</b> <br>(valid for 5 minutes)</p>")
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls(context=context)
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+
+        c.execute("INSERT INTO temp_users (token, email, password, code, expiry) VALUES (?, ?, ?, ?, ?)", (token, email, hashed_pw_str, hashed_code_str, token_expiry))
+        conn.commit()
+
+        response = make_response(jsonify({
+            "message": "Email code sent."}))
+        response.set_cookie(
+            "temp_user_token",
+            token,
+            httponly = True,
+            secure = True,
+            samesite="None",
+            domain = ".fedorco.dev",
+            max_age = token_expiry_sec,
+            path="/"
+        )
+        return response
     except Exception as e:
         current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
         conn.close()
 
+@auth_bp.route("/verify-code", methods=["POST"])
+def verify_code():
+    data = request.get_json()
+    code = (data["code"] or "").strip()
+
+    if not code:
+        return jsonify({"error": "Missing verification code."}), 400
+    
+    code_regex = r'^\d{6}$'
+    if not re.match(code_regex, code):
+        return jsonify({"error": "Verification code is in invalid format."}), 406
+
+    token = request.cookies.get("temp_user_token")
+    if not token:
+        return jsonify({"error": "Temporary user token missing."}), 402
+    
+    conn = get_db()
+    try:
+        c = conn.cursor()
+        # select the temporary user record
+        c.execute("SELECT * FROM temp_users WHERE token = ?", (token,))
+        temp_user = c.fetchone()
+        # check whether the token is valid
+        if not temp_user:
+            return jsonify({"error": "Invalid temporary user token."}), 401
+        # check whether the token is expired
+        time_now = time.time()
+        if time_now > temp_user["expiry"]:
+            c.execute("DELETE FROM temp_users WHERE token = ?", (token))
+            conn.commit()
+            return jsonify({"error": "Code expired."}), 410
+        # check whether the code matches
+        if not bcrypt.checkpw(code.encode("utf-8"), temp_user["code"].encode("utf-8")):
+            # check whether the user ran out of attempts (We already know we are gonna increment by 1, therefore we check, whether they have exceeded just two attempts - this saves us an unnecessary SQL query)
+            if temp_user["attempts"] >= 2:
+                c.execute("DELETE FROM temp_users WHERE token = ?", (token,))
+                conn.commit()
+                return jsonify({"error": "Too many attempts."}), 408
+            # increment the attempt counter
+            c.execute("UPDATE temp_users SET attempts = attempts + 1 WHERE token = ?", (token,))
+            conn.commit()
+            return jsonify({"error": "Invalid verification code."}), 403
+        c.execute("SELECT * FROM users WHERE email = ?", (temp_user["email"],))
+        user = c.fetchone
+        # check whether the account was already signed in by google
+        if user and not user["password"]:
+            c.execute("UPDATE users SET password = ? WHERE uid = ?", (temp_user["password"], user["uid"]))
+            conn.commit()
+        # if not, create a new account
+        else:
+            c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (temp_user["email"], temp_user["password"]))
+            conn.commit()
+    except Exception as e:
+        current_app.logger.info(f"DB error: {e}")
+        return jsonify({"error": "Database error."}), 500
+    finally:
+        conn.close()
     response = make_response(jsonify({
         "message": "Signup successful."
         }))
