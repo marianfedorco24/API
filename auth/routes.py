@@ -215,11 +215,11 @@ def verify_code():
         # check whether the account was already signed in by google
         if user and not user["password"]:
             c.execute("UPDATE users SET password = ? WHERE uid = ?", (temp_user["password"], user["uid"]))
-            conn.commit()
         # if not, create a new account
         else:
             c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (temp_user["email"], temp_user["password"]))
-            conn.commit()
+        c.execute("DELETE FROM temp_users WHERE token = ?", (token,))
+        conn.commit()
     except Exception as e:
         current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
