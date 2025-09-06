@@ -61,6 +61,11 @@ def getInfo():
             if not user_info:
                 return jsonify({"error": "User not found."}), 404
             user_dict = dict(user_info)
+            # check, whether the user has signed only via google to hide the "change pass" button
+            c.execute("SELECT password FROM users WHERE uid = ?", (user_id,))
+            user_info_pass = c.fetchone()[0]
+            user_dict["is_google_only"] = not bool(user_info_pass)
+            
             response = make_response(jsonify(user_dict), 200)
         except Exception as e:
             current_app.logger.info(f"DB error: {e}")
