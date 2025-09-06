@@ -105,7 +105,6 @@ def signup():
     conn = get_db()
     try:
         c = conn.cursor()
-
         c.execute("SELECT * FROM users WHERE email = ?", (email,))
         user = c.fetchone()
 
@@ -146,7 +145,8 @@ def signup():
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
 
-        c.execute("INSERT INTO temp_users (token, email, password, code, expiry) VALUES (?, ?, ?, ?, ?)", (token, email, hashed_pw_str, hashed_code_str, token_expiry))
+        # insert a new record
+        c.execute("INSERT OR REPLACE INTO temp_users (token, email, password, code, expiry) VALUES (?, ?, ?, ?, ?)", (token, email, hashed_pw_str, hashed_code_str, token_expiry))
         conn.commit()
 
         response = make_response(jsonify({
