@@ -163,6 +163,7 @@ def signup():
         )
         return response
     except Exception as e:
+        conn.rollback()
         current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
@@ -221,6 +222,7 @@ def verify_code():
         c.execute("DELETE FROM temp_users WHERE token = ?", (token,))
         conn.commit()
     except Exception as e:
+        conn.rollback()
         current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
@@ -228,6 +230,16 @@ def verify_code():
     response = make_response(jsonify({
         "message": "Signup successful."
         }))
+    response.set_cookie(
+        "temp_user_token",
+        "",
+        httponly = True,
+        secure = True,
+        samesite="None",
+        domain = ".fedorco.dev",
+        max_age = 0,
+        path="/"
+    )
     return response
 
 @auth_bp.route("/login", methods=["POST"])
@@ -256,6 +268,7 @@ def login():
         c.execute("SELECT * FROM users WHERE email = ?", (email,))
         user = c.fetchone()
     except Exception as e:
+        conn.rollback()
         current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
@@ -288,6 +301,7 @@ def login():
         c.execute("INSERT INTO sessions (sid, uid, expiry) VALUES (?, ?, ?)", (session_id, user["uid"], expiry))
         conn.commit()
     except Exception as e:
+        conn.rollback()
         current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error."}), 500
     finally:
@@ -336,6 +350,7 @@ def logout():
             c.execute("DELETE FROM sessions WHERE sid = ?", (session_id,))
             conn.commit()
         except Exception as e:
+            conn.rollback()
             current_app.logger.info(f"DB error: {e}")
             return jsonify({"error": "Database error."}), 500
         finally:
@@ -399,6 +414,7 @@ def change_password():
 
             conn.commit()
         except Exception as e:
+            conn.rollback()
             current_app.logger.info(f"DB error: {e}")
             return jsonify({"error": "Database error."}), 500
         finally:
@@ -447,6 +463,7 @@ def delete_account():
 
             conn.commit()
         except Exception as e:
+            conn.rollback()
             current_app.logger.info(f"DB error: {e}")
             return jsonify({"error": "Database error."}), 500
         finally:
@@ -505,6 +522,10 @@ def google_callback():
                 conn.commit()
                 c.execute("SELECT * FROM users WHERE google_id = ?", (google_id,))
                 user = c.fetchone()
+    except Exception as e:
+            conn.rollback()
+            current_app.logger.info(f"Google sign in error: {e}")
+            return jsonify({"error": "Google sign in error."}), 500
     finally:
         conn.close()
 
