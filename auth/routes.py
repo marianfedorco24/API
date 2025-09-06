@@ -400,7 +400,13 @@ def change_password():
             if not session_obj:
                 return jsonify({"error": "Invalid session."}), 401
             user_id = session_obj["uid"]
-
+            
+            # Check whether the user is logged in only via Google
+            c.execute("SELECT password FROM users WHERE uid = ?", (user_id,))
+            user_pass = c.fetchone()
+            if user_pass and not user_pass[0]:
+                return jsonify({"error": "This user is signed in only via Google."}), 403
+            
             # Hash the new password securely
             password_new_bytes = password_new.encode("utf-8")
             hashed_pw_new = bcrypt.hashpw(password_new_bytes, bcrypt.gensalt())
@@ -408,7 +414,7 @@ def change_password():
 
             # update the password in DB
             c.execute("UPDATE users SET password = ? WHERE uid = ?", (hashed_pw_new_str, user_id))
-
+            
             # delete old sessions
             c.execute("DELETE FROM sessions where uid = ?", (user_id,))
 
