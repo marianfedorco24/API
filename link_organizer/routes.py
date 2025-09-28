@@ -16,21 +16,22 @@ url_base = "https://fedorco.dev"
 
 load_dotenv()
 
-auth_bp = Blueprint("auth", __name__)
+link_organizer_bp = Blueprint("link_organizer", __name__)
 
 # Path to SQLite database file for auth
 db_path_link_organizer = os.path.join(os.path.dirname(__file__), "link_organizer.db")
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # goes from link_organizer/ to API/
 db_path_auth = os.path.join(BASE_DIR, "auth", "auth.db")
-print(db_path_auth)
 
 def get_db(db):
     if db == "link_organizer":
         db_path = db_path_link_organizer
+    else:
+        db_path = db_path_auth
     conn = sqlite3.connect(db_path, timeout=5)
     conn.row_factory = sqlite3.Row
     return conn
-    
+
 def validate_session(sid):
     conn = get_db()
     try:
@@ -55,6 +56,19 @@ def validate_session(sid):
         conn.close()
 
     
-@auth_bp.route("/signup", methods=["POST"])
-def signup():
-    return
+@link_organizer_bp.route("/additem", methods=["POST"])
+def additem():
+    data = request.get_json()
+    # check if all necessary data is present
+    if not data:
+        return jsonify({"error": "Invalid JSON."}), 406
+    if not all(v not in (None, "") for k, v in data.items() if k != "link"):
+        return jsonify({"error": "Some data is missing!"}), 400
+    
+    
+
+    return data
+
+
+
+
