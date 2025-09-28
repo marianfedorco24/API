@@ -19,9 +19,14 @@ load_dotenv()
 auth_bp = Blueprint("auth", __name__)
 
 # Path to SQLite database file for auth
-db_path = os.path.join(os.path.dirname(__file__), "link_organizer.db")
+db_path_link_organizer = os.path.join(os.path.dirname(__file__), "link_organizer.db")
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # goes from link_organizer/ to API/
+db_path_auth = os.path.join(BASE_DIR, "auth", "auth.db")
+print(db_path_auth)
 
-def get_db():
+def get_db(db):
+    if db == "link_organizer":
+        db_path = db_path_link_organizer
     conn = sqlite3.connect(db_path, timeout=5)
     conn.row_factory = sqlite3.Row
     return conn

@@ -3,3 +3,4 @@
 fedorcodev+api.code-workspace
 auth/auth.db
 auth/.env
+*.pyc
