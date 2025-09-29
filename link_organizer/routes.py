@@ -9,6 +9,9 @@ from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 import smtplib, ssl
 from email.message import EmailMessage
+from urllib.parse import urlsplit, urlunsplit
+import validators
+import modules
 
 # the base url
 url_base_api = "https://api.fedorco.dev"
@@ -55,7 +58,6 @@ def validate_session(sid):
     finally:
         conn.close()
 
-    
 @link_organizer_bp.route("/additem", methods=["POST"])
 def additem():
     data = request.get_json()
@@ -65,10 +67,5 @@ def additem():
     if not all(v not in (None, "") for k, v in data.items() if k != "link"):
         return jsonify({"error": "Some data is missing!"}), 400
     
-    
 
     return data
-
-
-
-
