@@ -78,7 +78,7 @@ def validate_session(sid):
             conn.commit()
             return False
         else:
-            return True
+            return session["uid"]
     except Exception as e:
         current_app.logger.info(f"DB error: {e}")
         abort(500, description="Database error.")

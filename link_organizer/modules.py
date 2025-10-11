@@ -1,14 +1,11 @@
-import re
+import re, ipaddress, validators, unicodedata
 from urllib.parse import urlsplit, urlunsplit
-import ipaddress
-import validators
 
 ALLOWED = {"http", "https"}
-MAX_LEN = 2048
+URL_MAX_LEN = 2048
 
 # scheme without colon, e.g., "https//example.com"
 _MISSING_COLON_SCHEME = re.compile(r'^[A-Za-z][A-Za-z0-9+.-]*//')
-
 def check_url(raw: str) -> str | None:
     """
     Normalize & validate a URL for DB storage.
@@ -76,9 +73,33 @@ def check_url(raw: str) -> str | None:
     normalized = urlunsplit((scheme, netloc, p.path or "", p.query or "", p.fragment or ""))
 
     # Length cap + conservative shape check
-    if len(normalized) > MAX_LEN:
+    if len(normalized) > URL_MAX_LEN:
         return None
     if not validators.url(normalized):
         return None
 
     return normalized
+
+ALLOWED_SEPARATORS = set(" -_.")
+NAME_MAX_LEN = 64
+def normalize_name(raw: str) -> str | None:
+    if not isinstance(raw, str):
+        return None
+    s = unicodedata.normalize("NFC", raw).strip()
+    if not s or len(s) > NAME_MAX_LEN:
+        return None
+
+    # reject control chars
+    if any(ord(c) < 32 or ord(c) == 127 for c in s):
+        return None
+
+    # only letters (any script), digits, separators
+    def ok(c: str) -> bool:
+        if c in ALLOWED_SEPARATORS:
+            return True
+        cat = unicodedata.category(c)   # 'L*' = letters, 'N*' = numbers
+        return cat[0] in ("L", "N")
+
+    if not all(ok(c) for c in s):
+        return None
+    return s

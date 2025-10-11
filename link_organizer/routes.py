@@ -1,17 +1,9 @@
 from flask import Blueprint, request, jsonify, make_response, url_for, redirect, current_app, abort
-import sqlite3
-import os
-import bcrypt
-import secrets
-import time
-import re
+import sqlite3, os, time
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
-import smtplib, ssl
-from email.message import EmailMessage
-from urllib.parse import urlsplit, urlunsplit
-import validators
 import modules
+from ..auth.routes import
 
 # the base url
 url_base_api = "https://api.fedorco.dev"
@@ -35,29 +27,6 @@ def get_db(db):
     conn.row_factory = sqlite3.Row
     return conn
 
-def validate_session(sid):
-    conn = get_db()
-    try:
-        c = conn.cursor()
-        c.execute("SELECT * FROM sessions WHERE sid = ?", (sid,))
-        session = c.fetchone()
-        if not session:
-            return False
-        sid_expiry = session["expiry"]
-        time_now = int(time.time())
-
-        if time_now > int(sid_expiry):
-            c.execute("DELETE FROM sessions WHERE sid = ?", (sid,))
-            conn.commit()
-            return False
-        else:
-            return True
-    except Exception as e:
-        current_app.logger.info(f"DB error: {e}")
-        abort(500, description="Database error.")
-    finally:
-        conn.close()
-
 @link_organizer_bp.route("/additem", methods=["POST"])
 def additem():
     data = request.get_json()
@@ -67,5 +36,26 @@ def additem():
     if not all(v not in (None, "") for k, v in data.items() if k != "link"):
         return jsonify({"error": "Some data is missing!"}), 400
     
+    name = modules.normalize_name(data["name"])
+    if not name:
+        return jsonify({"error": "The entered name does not meet the required format."}), 400
+
+    if data["type"] == "link":
+        link = modules.check_url(data["link"])
+        if not link:
+            return jsonify({"error": "Your link does not meet the required format"}), 400
+
+        conn = get_db("link_organizer")
+        try:
+            c = conn.cursor()
+
+        pass
+    else:
+        pass
+    
+
+
+
+
 
     return data
