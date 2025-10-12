@@ -1,18 +1,13 @@
 from flask import Blueprint, request, jsonify, make_response, url_for, redirect, current_app, abort
-import sqlite3
-import os
-import bcrypt
-import secrets
-import time
-import re
+import sqlite3, os, requests, bcrypt, secrets, time, re, ssl
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
-import smtplib, ssl
 from email.message import EmailMessage
 
 # the base url
 url_base_api = "https://api.fedorco.dev"
 url_base = "https://fedorco.dev"
+brevo_api_url = "https://api.brevo.com/v3/smtp/email"
 
 load_dotenv()
 
@@ -132,18 +127,47 @@ def signup():
         time_now = int(time.time())
         token_expiry = time_now + token_expiry_sec
 
-        # send a verification email
-        msg = EmailMessage()
-        msg["Subject"] = "Your login code"
-        msg["From"] = FROM_EMAIL
-        msg["To"] = email
-        msg.set_content(f"<img src=\"https://fedorco.dev/logo/logo.png\" style=\"width:10rem;\"><br><p>Your one-time code is: <b>{code_str}</b> <br>(valid for 5 minutes)</p>", subtype = "html")
 
-        context = ssl.create_default_context()
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls(context=context)
-            server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
+
+
+
+        # send a verification email
+        brevo_headers = {"api-key": os.getenv("BREVO_API_KEY")}
+        brevo_request_data = {
+            "sender": {"name": "fedorco.dev", "email": "noreply@fedorco.dev"},
+            "to": [{"email": email}],
+            "subject": "Your fedorco.dev login code",
+            "htmlContent": f"""
+                <div style="font-family:Arial, sans-serif; text-align:center;">
+                    <img src="https://fedorco.dev/logo/logo.png" alt="Fedorco Logo"
+                        style="width:10rem; margin-bottom:1rem;">
+                    <p>Your one-time code is: <b>{code_str}</b><br>(valid for 5 minutes)</p>
+                </div>
+            """
+        }
+        requests.post(brevo_api_url, headers=brevo_headers, json=brevo_request_data)
+
+
+
+
+
+        # # send a verification email
+        # msg = EmailMessage()
+        # msg["Subject"] = "Your fedorco.dev login code"
+        # msg["From"] = FROM_EMAIL
+        # msg["To"] = email
+        # msg.set_content(f"<img src=\"https://fedorco.dev/logo/logo.png\" style=\"width:10rem;\"><br><p>Your one-time code is: <b>{code_str}</b> <br>(valid for 5 minutes)</p>", subtype = "html")
+
+        # context = ssl.create_default_context()
+        # with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        #     server.starttls(context=context)
+        #     server.login(SMTP_USER, SMTP_PASS)
+        #     server.send_message(msg)
+
+
+
+
+
 
         # insert a new record
         c.execute("INSERT OR REPLACE INTO temp_users (token, email, password, code, expiry) VALUES (?, ?, ?, ?, ?)", (token, email, hashed_pw_str, hashed_code_str, token_expiry))
