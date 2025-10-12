@@ -127,10 +127,6 @@ def signup():
         time_now = int(time.time())
         token_expiry = time_now + token_expiry_sec
 
-
-
-
-
         # send a verification email
         brevo_headers = {"api-key": os.getenv("BREVO_API_KEY")}
         brevo_request_data = {
@@ -146,28 +142,6 @@ def signup():
             """
         }
         requests.post(brevo_api_url, headers=brevo_headers, json=brevo_request_data)
-
-
-
-
-
-        # # send a verification email
-        # msg = EmailMessage()
-        # msg["Subject"] = "Your fedorco.dev login code"
-        # msg["From"] = FROM_EMAIL
-        # msg["To"] = email
-        # msg.set_content(f"<img src=\"https://fedorco.dev/logo/logo.png\" style=\"width:10rem;\"><br><p>Your one-time code is: <b>{code_str}</b> <br>(valid for 5 minutes)</p>", subtype = "html")
-
-        # context = ssl.create_default_context()
-        # with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-        #     server.starttls(context=context)
-        #     server.login(SMTP_USER, SMTP_PASS)
-        #     server.send_message(msg)
-
-
-
-
-
 
         # insert a new record
         c.execute("INSERT OR REPLACE INTO temp_users (token, email, password, code, expiry) VALUES (?, ?, ?, ?, ?)", (token, email, hashed_pw_str, hashed_code_str, token_expiry))
