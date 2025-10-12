@@ -155,9 +155,9 @@ def signup():
             "temp_user_token",
             token,
             httponly = True,
-            secure = True,
-            samesite="None",
-            domain = ".fedorco.dev",
+            secure = False,
+            samesite="Lax",
+            # domain = ".fedorco.dev",
             max_age = token_expiry_sec,
             path="/"
         )
@@ -165,7 +165,8 @@ def signup():
     except Exception as e:
         conn.rollback()
         current_app.logger.info(f"DB error: {e}")
-        return jsonify({"error": "Database error."}), 500
+        return jsonify({"error": "Database error.",
+                        "Description:": e}), 500
     finally:
         conn.close()
 
@@ -234,9 +235,9 @@ def verify_code():
         "temp_user_token",
         "",
         httponly = True,
-        secure = True,
-        samesite="None",
-        domain = ".fedorco.dev",
+        secure = False,
+        samesite="Lax",
+        # domain = ".fedorco.dev",
         max_age = 0,
         path="/"
     )
@@ -317,9 +318,9 @@ def login():
             "session",
             session_id,
             httponly = True,
-            secure = True,
-            samesite="None",
-            domain = ".fedorco.dev",
+            secure = False,
+            samesite="Lax",
+            # domain = ".fedorco.dev",
             max_age = session_lifespan_seconds,
             path="/"
         )
@@ -328,9 +329,9 @@ def login():
             "session",
             session_id,
             httponly = True,
-            secure = True,
-            samesite="None",
-            domain = ".fedorco.dev",
+            secure = False,
+            samesite="Lax",
+            # domain = ".fedorco.dev",
             path="/"
         )
     return response
@@ -363,9 +364,9 @@ def logout():
         "session",
         "",
         httponly=True,
-        secure=True,
-        samesite="None",
-        domain=".fedorco.dev",
+        secure=False,
+        samesite="Lax",
+        # domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
@@ -433,9 +434,9 @@ def change_password():
         "session",
         "",
         httponly=True,
-        secure=True,
-        samesite="None",
-        domain=".fedorco.dev",
+        secure=False,
+        samesite="Lax",
+        # domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
@@ -483,9 +484,9 @@ def delete_account():
         "session",
         "",
         httponly=True,
-        secure=True,
-        samesite="None",
-        domain=".fedorco.dev",
+        secure=False,
+        samesite="Lax",
+        # domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
@@ -554,9 +555,9 @@ def google_callback():
         "session",
         session_id,
         httponly = True,
-        secure = True,
-        samesite="None",
-        domain=".fedorco.dev",
+        secure = False,
+        samesite="Lax",
+        # domain=".fedorco.dev",
         max_age = session_lifespan_seconds,
         path="/"
     )
