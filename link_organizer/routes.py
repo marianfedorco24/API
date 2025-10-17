@@ -36,8 +36,8 @@ load_dotenv()
 
 link_organizer_bp = Blueprint("link_organizer", __name__)
 
-@link_organizer_bp.route("/additem", methods=["POST"])
-def additem():
+@link_organizer_bp.route("/add-item", methods=["POST"])
+def add_item():
     # validate the session id
     session_id = request.cookies.get("session")
     if not session_id:
@@ -96,3 +96,32 @@ def additem():
     return jsonify({
         "message": "A new item created successfully."
     }), 201
+
+@link_organizer_bp.route("/get-items", methods=["GET"])
+def get_items():
+    # validate the session id
+    session_id = request.cookies.get("session")
+    if not session_id:
+        return jsonify({"error": "No active session."}), 401
+    
+    sid_validation = global_modules.validate_session(session_id)
+    if not sid_validation:
+        return jsonify({"error": "Invalid or expired session!"}), 401
+    
+    pid = request.args.get("pid", "").strip()
+    pid = pid if pid.isdigit() else ""
+    if not pid:
+        return jsonify({"error": "Parent ID is missing."}), 400
+    
+    conn = global_modules.get_db("link_organizer")
+    try:
+        c = conn.cursor()
+        c.execute("SELECT color, icon, id, link, name, pid, type FROM user_items WHERE uid = ? AND pid = ? ", (sid_validation, pid))
+        rows = c.fetchall()
+        items = [dict(row) for row in rows]
+        return jsonify(items)
+    except Exception as e:
+        current_app.logger.info(f"DB error occurred while loading items from the DB: {e}")
+        return jsonify({"error": "DB error occurred while loading items from the DB."}), 500
+    finally:
+        conn.close()
