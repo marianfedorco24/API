@@ -62,8 +62,9 @@ def additem():
         return jsonify({"error": "Invalid type."}), 400
 
     # check the link
+    link = data.get("link") or None
     if item_type == "link":
-        link = check_url(data.get("link"))
+        link = check_url(link)
         if not link:
             return jsonify({"error": "Your link does not meet the required format"}), 400
     
