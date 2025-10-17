@@ -38,6 +38,8 @@ def additem():
     if not data:
         return jsonify({"error": "Invalid JSON."}), 406
     
+    
+    
     required = [k for k in data.keys() if k != "link"]
     if any(data.get(k) in (None, "") for k in required):
         return jsonify({"error": "Some data is missing!"}), 400
@@ -60,7 +62,7 @@ def additem():
     conn = global_modules.get_db("link_organizer")
     try:
         c = conn.cursor()
-        c.execute("INSERT INTO user_items (id, pid, uid, type, icon, name, link, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (int(data["id"]), int(data["pid"]), sid_validation, data["type"], data["icon"], name, link, color))
+        c.execute("INSERT INTO user_items (pid, uid, type, icon, name, link, color) VALUES (?, ?, ?, ?, ?, ?, ?)", (int(data["pid"]), sid_validation, data["type"], data["icon"], name, link, color))
         conn.commit()
     except Exception as e:
         conn.rollback()
