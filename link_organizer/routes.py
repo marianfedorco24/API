@@ -48,7 +48,6 @@ def add_item():
     
     # get data
     data = request.get_json()
-    # check if all necessary data is present
     if not data:
         return jsonify({"error": "Invalid JSON."}), 400
     
@@ -87,16 +86,13 @@ def add_item():
         c = conn.cursor()
         c.execute("INSERT INTO user_items (pid, uid, type, icon, name, link, color) VALUES (?, ?, ?, ?, ?, ?, ?)", (int(pid), sid_validation, item_type, icon, name, link, color))
         conn.commit()
+        return jsonify({"message": "A new item created successfully."}), 201
     except Exception as e:
         conn.rollback()
         current_app.logger.error(f"DB error occurred while adding a new item: {e}")
         return jsonify({"error": "DB error occurred while adding a new item."}), 500
     finally:
         conn.close()
-
-    return jsonify({
-        "message": "A new item created successfully."
-    }), 201
 
 @link_organizer_bp.route("/get-items", methods=["GET"])
 def get_items():
@@ -156,5 +152,69 @@ def delete_item():
     except Exception as e:
         current_app.logger.error(f"DB error occurred while deleting an item from the DB: {e}")
         return jsonify({"error": "DB error occurred while deleting an item from the DB."}), 500
+    finally:
+        conn.close()
+
+@link_organizer_bp.route("/edit-item", methods=["PATCH"])
+def edit_item():
+    # validate the session id
+    session_id = request.cookies.get("session")
+    if not session_id:
+        return jsonify({"error": "No active session."}), 401
+    sid_validation = global_modules.validate_session(session_id)
+    if not sid_validation:
+        return jsonify({"error": "Invalid or expired session!"}), 401
+    
+    # get iid
+    iid = request.args.get("iid", "").strip()
+    iid = iid if iid.isdigit() else ""
+    if not iid:
+        return jsonify({"error": "Item ID is missing."}), 400
+    
+    # get new data
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON."}), 400
+    
+    # check the item type
+    item_type = (data.get("type") or "").strip()
+    if item_type not in ("link", "folder"):
+        return jsonify({"error": "Invalid type."}), 400
+
+    # check the link
+    link = data.get("link") or None
+    if item_type == "link":
+        link = check_url(link)
+        if not link:
+            return jsonify({"error": "Your link does not meet the required format"}), 400
+    
+    # check the name
+    name = normalize_name(data.get("name"))
+    if not name:
+        return jsonify({"error": "The entered name does not meet the required format."}), 400
+    
+    # check the color
+    color = (data.get("color") or "white").strip()
+    color = color if color in allowed_colors else "white"
+
+    # check the icon
+    icon = (data.get("icon") or "default").strip()
+    icon = icon if icon in allowed_icons else "default"
+
+    conn = global_modules.get_db("link_organizer")
+    try:
+        c = conn.cursor()
+        c.execute("UPDATE user_items SET icon = ?, name = ?, link = ?, color = ? where uid = ? AND iid = ?", (icon, name, link, color, sid_validation, int(iid)))
+        rows_edited = c.rowcount
+        conn.commit()
+
+        if rows_edited == 0:
+            return jsonify({"error": "Item not found or not owned by user."}), 404
+        
+        return jsonify({"message": "Item edited successfully."}), 200
+    except Exception as e:
+        conn.rollback()
+        current_app.logger.error(f"DB error occurred while editing an item: {e}")
+        return jsonify({"error": "DB error occurred while editing an item."}), 500
     finally:
         conn.close()
