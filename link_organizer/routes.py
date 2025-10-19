@@ -42,10 +42,11 @@ def add_item():
     session_id = request.cookies.get("session")
     if not session_id:
         return jsonify({"error": "No active session."}), 401
-    
     sid_validation = global_modules.validate_session(session_id)
     if not sid_validation:
         return jsonify({"error": "Invalid or expired session!"}), 401
+    
+    # get data
     data = request.get_json()
     # check if all necessary data is present
     if not data:
@@ -88,7 +89,7 @@ def add_item():
         conn.commit()
     except Exception as e:
         conn.rollback()
-        current_app.logger.info(f"DB error occurred while adding a new item: {e}")
+        current_app.logger.error(f"DB error occurred while adding a new item: {e}")
         return jsonify({"error": "DB error occurred while adding a new item."}), 500
     finally:
         conn.close()
@@ -103,11 +104,11 @@ def get_items():
     session_id = request.cookies.get("session")
     if not session_id:
         return jsonify({"error": "No active session."}), 401
-    
     sid_validation = global_modules.validate_session(session_id)
     if not sid_validation:
         return jsonify({"error": "Invalid or expired session!"}), 401
     
+    # get pid
     pid = request.args.get("pid", "").strip()
     pid = pid if pid.isdigit() else ""
     if not pid:
@@ -116,12 +117,44 @@ def get_items():
     conn = global_modules.get_db("link_organizer")
     try:
         c = conn.cursor()
-        c.execute("SELECT color, icon, id, link, name, pid, type FROM user_items WHERE uid = ? AND pid = ? ", (sid_validation, pid))
+        c.execute("SELECT color, icon, iid, link, name, pid, type FROM user_items WHERE uid = ? AND pid = ? ", (sid_validation, pid))
         rows = c.fetchall()
         items = [dict(row) for row in rows]
         return jsonify(items)
     except Exception as e:
-        current_app.logger.info(f"DB error occurred while loading items from the DB: {e}")
+        current_app.logger.error(f"DB error occurred while loading items from the DB: {e}")
         return jsonify({"error": "DB error occurred while loading items from the DB."}), 500
+    finally:
+        conn.close()
+
+@link_organizer_bp.route("/delete-item", methods=["DELETE"])
+def delete_item():
+    # validate the session id
+    session_id = request.cookies.get("session")
+    if not session_id:
+        return jsonify({"error": "No active session."}), 401
+    sid_validation = global_modules.validate_session(session_id)
+    if not sid_validation:
+        return jsonify({"error": "Invalid or expired session!"}), 401
+    
+    # get item id
+    iid = request.args.get("iid", "").strip()
+    iid = iid if iid.isdigit() else ""
+    if not iid:
+        return jsonify({"error": "Item ID is missing."}), 400
+    
+    conn = global_modules.get_db("link_organizer")
+    try:
+        c = conn.cursor()
+        c.execute("DELETE FROM user_items WHERE uid = ? AND iid = ?", (sid_validation, int(iid)))
+        rows_deleted = c.rowcount
+        conn.commit()
+
+        if rows_deleted == 0:
+            return jsonify({"error": "Item not found or not owned by user."}), 404
+        return jsonify({"message": "Item deleted successfully."}), 200
+    except Exception as e:
+        current_app.logger.error(f"DB error occurred while deleting an item from the DB: {e}")
+        return jsonify({"error": "DB error occurred while deleting an item from the DB."}), 500
     finally:
         conn.close()

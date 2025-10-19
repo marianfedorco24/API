@@ -8,7 +8,7 @@ c = conn.cursor()
 
 c.execute("""
     CREATE TABLE IF NOT EXISTS user_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        iid INTEGER PRIMARY KEY AUTOINCREMENT,
         pid INTEGER DEFAULT 0,
         uid INTEGER NOT NULL,
         type TEXT NOT NULL,
