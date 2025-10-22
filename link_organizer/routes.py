@@ -98,14 +98,14 @@ def add_item():
 
 @link_organizer_bp.route("/get-items", methods=["GET"])
 def get_items():
-    # # validate the session id
-    # session_id = request.cookies.get("session")
-    # if not session_id:
-    #     return jsonify({"error": "No active session."}), 401
-    # sid_validation = global_modules.validate_session(session_id)
-    # if not sid_validation:
-    #     return jsonify({"error": "Invalid or expired session!"}), 401
-    sid_validation = "1"
+    # validate the session id
+    session_id = request.cookies.get("session")
+    current_app.logger.info(session_id)
+    if not session_id:
+        return jsonify({"error": "No active session."}), 401
+    sid_validation = global_modules.validate_session(session_id)
+    if not sid_validation:
+        return jsonify({"error": "Invalid or expired session!"}), 401
     
     # get pid
     pid = request.args.get("pid", "").strip()
@@ -128,13 +128,15 @@ def get_items():
 
 @link_organizer_bp.route("/delete-item", methods=["DELETE"])
 def delete_item():
-    # validate the session id
-    session_id = request.cookies.get("session")
-    if not session_id:
-        return jsonify({"error": "No active session."}), 401
-    sid_validation = global_modules.validate_session(session_id)
-    if not sid_validation:
-        return jsonify({"error": "Invalid or expired session!"}), 401
+    # # validate the session id
+    # session_id = request.cookies.get("session")
+    # if not session_id:
+    #     return jsonify({"error": "No active session."}), 401
+    # sid_validation = global_modules.validate_session(session_id)
+    # if not sid_validation:
+    #     return jsonify({"error": "Invalid or expired session!"}), 401
+
+    sid_validation = "1"
     
     # get item id
     iid = request.args.get("iid", "").strip()
@@ -160,13 +162,14 @@ def delete_item():
 
 @link_organizer_bp.route("/edit-item", methods=["PATCH"])
 def edit_item():
-    # validate the session id
-    session_id = request.cookies.get("session")
-    if not session_id:
-        return jsonify({"error": "No active session."}), 401
-    sid_validation = global_modules.validate_session(session_id)
-    if not sid_validation:
-        return jsonify({"error": "Invalid or expired session!"}), 401
+    # # validate the session id
+    # session_id = request.cookies.get("session")
+    # if not session_id:
+    #     return jsonify({"error": "No active session."}), 401
+    # sid_validation = global_modules.validate_session(session_id)
+    # if not sid_validation:
+    #     return jsonify({"error": "Invalid or expired session!"}), 401
+    sid_validation = "1"
     
     # get iid
     iid = request.args.get("iid", "").strip()
