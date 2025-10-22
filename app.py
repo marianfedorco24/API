@@ -1,8 +1,10 @@
 from flask import Flask
 from flask_cors import CORS
 from auth.routes import init_oauth
+import os
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback-unsafe-key")
 CORS(app, supports_credentials=True, origins=["https://fedorco.dev", "https://www.fedorco.dev"])
 
 # Initialize oAuth
