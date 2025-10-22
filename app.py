@@ -3,8 +3,7 @@ from flask_cors import CORS
 from auth.routes import init_oauth
 
 app = Flask(__name__)
-# CORS(app, supports_credentials=True, origins=["https://fedorco.dev", "https://www.fedorco.dev", "http://127.0.0.1:5500"])
-CORS(app, supports_credentials=True, origins="*")
+CORS(app, supports_credentials=True, origins=["https://fedorco.dev", "https://www.fedorco.dev"])
 
 # Initialize oAuth
 init_oauth(app)
@@ -20,10 +19,6 @@ app.register_blueprint(user_bp, url_prefix="/user")
 # Register the Link Organizer blueprint under /linkorganizer URL prefix
 from link_organizer.routes import link_organizer_bp  # Import your blueprint
 app.register_blueprint(link_organizer_bp, url_prefix="/linkorganizer")
-
-@app.route("/")
-def index():
-    return "Nothing to be seen here..."
 
 if __name__ == "__main__":
     app.run(debug=True)

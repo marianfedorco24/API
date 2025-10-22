@@ -1,8 +1,7 @@
 from flask import Blueprint, request, jsonify, make_response, url_for, redirect, current_app, abort
-import sqlite3, os, requests, bcrypt, secrets, time, re, ssl
+import sqlite3, os, requests, bcrypt, secrets, time, re
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
-from email.message import EmailMessage
 
 # the base url
 url_base_api = "https://api.fedorco.dev"
@@ -141,7 +140,12 @@ def signup():
                 </div>
             """
         }
-        requests.post(brevo_api_url, headers=brevo_headers, json=brevo_request_data)
+        try:
+            requests.post(brevo_api_url, headers=brevo_headers, json=brevo_request_data)
+        except Exception as e:
+            conn.rollback()
+            current_app.logger.info(f"Error while sending an email: {e}")
+            return jsonify({"error": "Error while sending an email.", "Description:": str(e)}), 500
 
         # insert a new record
         c.execute("INSERT OR REPLACE INTO temp_users (token, email, password, code, expiry) VALUES (?, ?, ?, ?, ?)", (token, email, hashed_pw_str, hashed_code_str, token_expiry))
@@ -153,9 +157,9 @@ def signup():
             "temp_user_token",
             token,
             httponly = True,
-            secure = False,
-            samesite="Lax",
-            # domain = ".fedorco.dev",
+            secure = True,
+            samesite="None",
+            domain=".fedorco.dev",
             max_age = token_expiry_sec,
             path="/"
         )
@@ -164,14 +168,14 @@ def signup():
         conn.rollback()
         current_app.logger.info(f"DB error: {e}")
         return jsonify({"error": "Database error.",
-                        "Description:": e}), 500
+                        "Description:": str(e)}), 500
     finally:
         conn.close()
 
 @auth_bp.route("/verify-code", methods=["POST"])
 def verify_code():
     data = request.get_json()
-    code = (data["code"] or "").strip()
+    code = (data.get("code") or "").strip()
 
     if not code:
         return jsonify({"error": "Missing verification code."}), 400
@@ -233,9 +237,9 @@ def verify_code():
         "temp_user_token",
         "",
         httponly = True,
-        secure = False,
-        samesite="Lax",
-        # domain = ".fedorco.dev",
+        secure = True,
+        samesite="None",
+        domain=".fedorco.dev",
         max_age = 0,
         path="/"
     )
@@ -316,9 +320,9 @@ def login():
             "session",
             session_id,
             httponly = True,
-            secure = False,
-            samesite="Lax",
-            # domain = ".fedorco.dev",
+            secure=True,
+            samesite="None",
+            domain=".fedorco.dev",
             max_age = session_lifespan_seconds,
             path="/"
         )
@@ -327,9 +331,9 @@ def login():
             "session",
             session_id,
             httponly = True,
-            secure = False,
-            samesite="Lax",
-            # domain = ".fedorco.dev",
+            secure=True,
+            samesite="None",
+            domain=".fedorco.dev",
             path="/"
         )
     return response
@@ -362,9 +366,9 @@ def logout():
         "session",
         "",
         httponly=True,
-        secure=False,
-        samesite="Lax",
-        # domain=".fedorco.dev",
+        secure=True,
+        samesite="None",
+        domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
@@ -432,9 +436,9 @@ def change_password():
         "session",
         "",
         httponly=True,
-        secure=False,
-        samesite="Lax",
-        # domain=".fedorco.dev",
+        secure=True,
+        samesite="None",
+        domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
@@ -482,9 +486,9 @@ def delete_account():
         "session",
         "",
         httponly=True,
-        secure=False,
-        samesite="Lax",
-        # domain=".fedorco.dev",
+        secure=True,
+        samesite="None",
+        domain=".fedorco.dev",
         expires=0,
         max_age=0,
         path="/"
@@ -553,9 +557,9 @@ def google_callback():
         "session",
         session_id,
         httponly = True,
-        secure = False,
-        samesite="Lax",
-        # domain=".fedorco.dev",
+        secure=True,
+        samesite="None",
+        domain=".fedorco.dev",
         max_age = session_lifespan_seconds,
         path="/"
     )
