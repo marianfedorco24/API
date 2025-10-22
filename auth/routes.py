@@ -141,11 +141,21 @@ def signup():
             """
         }
         try:
-            requests.post(brevo_api_url, headers=brevo_headers, json=brevo_request_data)
+            response = requests.post(brevo_api_url, headers=brevo_headers, json=brevo_request_data)
+            if response.status_code >= 400:
+                current_app.logger.info(f"Brevo error: {response.status_code} {response.text}")
+                return jsonify({
+                    "error": "Brevo API error.",
+                    "status_code": response.status_code,
+                    "response": response.text
+                }), 500
         except Exception as e:
             conn.rollback()
             current_app.logger.info(f"Error while sending an email: {e}")
-            return jsonify({"error": "Error while sending an email.", "Description:": str(e)}), 500
+            return jsonify({
+                "error": "Request to Brevo failed.",
+                "description": str(e)
+            }), 500
 
         # insert a new record
         c.execute("INSERT OR REPLACE INTO temp_users (token, email, password, code, expiry) VALUES (?, ?, ?, ?, ?)", (token, email, hashed_pw_str, hashed_code_str, token_expiry))
