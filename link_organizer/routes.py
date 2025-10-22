@@ -38,20 +38,30 @@ link_organizer_bp = Blueprint("link_organizer", __name__)
 
 @link_organizer_bp.route("/add-item", methods=["POST"])
 def add_item():
-    # # validate the session id
-    # session_id = request.cookies.get("session")
-    # if not session_id:
-    #     return jsonify({"error": "No active session."}), 401
-    # sid_validation = global_modules.validate_session(session_id)
-    # if not sid_validation:
-    #     return jsonify({"error": "Invalid or expired session!"}), 401
-
-    sid_validation = "1"
+    # validate the session id
+    session_id = request.cookies.get("session")
+    if not session_id:
+        return jsonify({
+            "messagetype": "error",
+            "message": "No active session.",
+            "display": False
+            }), 401
+    sid_validation = global_modules.validate_session(session_id)
+    if not sid_validation:
+        return jsonify({
+            "messagetype": "error",
+            "message": "Invalid or expired session.",
+            "display": False
+            }), 401
     
     # get data
     data = request.get_json()
     if not data:
-        return jsonify({"error": "Invalid JSON."}), 400
+        return jsonify({
+            "messagetype": "error",
+            "message": "Missing JSON payload.",
+            "display": False
+            }), 400
     
     # check the parent id
     pid = (data.get("pid") or "0").strip()
@@ -61,19 +71,31 @@ def add_item():
     # check the item type
     item_type = (data.get("type") or "").strip()
     if item_type not in ("link", "folder"):
-        return jsonify({"error": "Invalid type."}), 400
+        return jsonify({
+            "messagetype": "error",
+            "message": "Invalid item type.",
+            "display": False
+            }), 400
 
     # check the link
     link = data.get("link") or None
     if item_type == "link":
         link = check_url(link)
         if not link:
-            return jsonify({"error": "Your link does not meet the required format"}), 400
+            return jsonify({
+            "messagetype": "error",
+            "message": "Entered link does not meet the required format.",
+            "display": True
+            }), 400
     
     # check the name
     name = normalize_name(data.get("name"))
     if not name:
-        return jsonify({"error": "The entered name does not meet the required format."}), 400
+        return jsonify({
+            "messagetype": "error",
+            "message": "Entered name does not meet the required format.",
+            "display": True
+            }), 400
     
     # check the color
     color = (data.get("color") or "white").strip()
@@ -88,11 +110,19 @@ def add_item():
         c = conn.cursor()
         c.execute("INSERT INTO user_items (pid, uid, type, icon, name, link, color) VALUES (?, ?, ?, ?, ?, ?, ?)", (int(pid), sid_validation, item_type, icon, name, link, color))
         conn.commit()
-        return jsonify({"message": "A new item created successfully."}), 201
+        return jsonify({
+            "messagetype": "success",
+            "message": "New item created successfully.",
+            "display": True
+            }), 201
     except Exception as e:
         conn.rollback()
         current_app.logger.error(f"DB error occurred while adding a new item: {e}")
-        return jsonify({"error": "DB error occurred while adding a new item."}), 500
+        return jsonify({
+            "messagetype": "error",
+            "message": "A database error occured.",
+            "display": True
+            }), 500
     finally:
         conn.close()
 
@@ -102,16 +132,28 @@ def get_items():
     session_id = request.cookies.get("session")
     current_app.logger.info(session_id)
     if not session_id:
-        return jsonify({"error": "No active session."}), 401
+        return jsonify({
+            "messagetype": "error",
+            "message": "No active session.",
+            "display": False
+            }), 401
     sid_validation = global_modules.validate_session(session_id)
     if not sid_validation:
-        return jsonify({"error": "Invalid or expired session!"}), 401
+        return jsonify({
+            "messagetype": "error",
+            "message": "Invalid or expired session.",
+            "display": False
+            }), 401
     
     # get pid
     pid = request.args.get("pid", "").strip()
     pid = pid if pid.isdigit() else ""
     if not pid:
-        return jsonify({"error": "Parent ID is missing."}), 400
+        return jsonify({
+            "messagetype": "error",
+            "message": "Parent ID is missing.",
+            "display": False
+            }), 400
     
     conn = global_modules.get_db("link_organizer")
     try:
@@ -122,27 +164,41 @@ def get_items():
         return jsonify(items)
     except Exception as e:
         current_app.logger.error(f"DB error occurred while loading items from the DB: {e}")
-        return jsonify({"error": "DB error occurred while loading items from the DB."}), 500
+        return jsonify({
+            "messagetype": "error",
+            "message": "A database error occured.",
+            "display": True
+            }), 500
     finally:
         conn.close()
 
 @link_organizer_bp.route("/delete-item", methods=["DELETE"])
 def delete_item():
-    # # validate the session id
-    # session_id = request.cookies.get("session")
-    # if not session_id:
-    #     return jsonify({"error": "No active session."}), 401
-    # sid_validation = global_modules.validate_session(session_id)
-    # if not sid_validation:
-    #     return jsonify({"error": "Invalid or expired session!"}), 401
-
-    sid_validation = "1"
+    # validate the session id
+    session_id = request.cookies.get("session")
+    if not session_id:
+        return jsonify({
+            "messagetype": "error",
+            "message": "No active session.",
+            "display": False
+            }), 401
+    sid_validation = global_modules.validate_session(session_id)
+    if not sid_validation:
+        return jsonify({
+            "messagetype": "error",
+            "message": "Invalid or expired session.",
+            "display": False
+            }), 401
     
     # get item id
     iid = request.args.get("iid", "").strip()
     iid = iid if iid.isdigit() else ""
     if not iid:
-        return jsonify({"error": "Item ID is missing."}), 400
+        return jsonify({
+            "messagetype": "error",
+            "message": "Item ID is missing.",
+            "display": False
+            }), 400
     
     conn = global_modules.get_db("link_organizer")
     try:
@@ -152,52 +208,91 @@ def delete_item():
         conn.commit()
 
         if rows_deleted == 0:
-            return jsonify({"error": "Item not found or not owned by user."}), 404
-        return jsonify({"message": "Item deleted successfully."}), 200
+            return jsonify({
+            "messagetype": "error",
+            "message": "Item not found.",
+            "display": True
+            }), 404
+        return jsonify({
+            "messagetype": "success",
+            "message": "Item deleted succesfully.",
+            "display": True
+            }), 200
     except Exception as e:
         current_app.logger.error(f"DB error occurred while deleting an item from the DB: {e}")
-        return jsonify({"error": "DB error occurred while deleting an item from the DB."}), 500
+        return jsonify({
+            "messagetype": "error",
+            "message": "A database error occured.",
+            "display": True
+            }), 500
     finally:
         conn.close()
 
 @link_organizer_bp.route("/edit-item", methods=["PATCH"])
 def edit_item():
-    # # validate the session id
-    # session_id = request.cookies.get("session")
-    # if not session_id:
-    #     return jsonify({"error": "No active session."}), 401
-    # sid_validation = global_modules.validate_session(session_id)
-    # if not sid_validation:
-    #     return jsonify({"error": "Invalid or expired session!"}), 401
-    sid_validation = "1"
+    # validate the session id
+    session_id = request.cookies.get("session")
+    if not session_id:
+        return jsonify({
+            "messagetype": "error",
+            "message": "No active session.",
+            "display": False
+            }), 401
+    sid_validation = global_modules.validate_session(session_id)
+    if not sid_validation:
+        return jsonify({
+            "messagetype": "error",
+            "message": "Invalid or expired session.",
+            "display": False
+            }), 401
     
     # get iid
     iid = request.args.get("iid", "").strip()
     iid = iid if iid.isdigit() else ""
     if not iid:
-        return jsonify({"error": "Item ID is missing."}), 400
+        return jsonify({
+            "messagetype": "error",
+            "message": "Item ID is missing.",
+            "display": False
+            }), 400
     
     # get new data
     data = request.get_json()
     if not data:
-        return jsonify({"error": "Invalid JSON."}), 400
+        return jsonify({
+            "messagetype": "error",
+            "message": "Missing JSON payload.",
+            "display": False
+            }), 400
     
     # check the item type
     item_type = (data.get("type") or "").strip()
     if item_type not in ("link", "folder"):
-        return jsonify({"error": "Invalid type."}), 400
+        return jsonify({
+            "messagetype": "error",
+            "message": "Invalid item type.",
+            "display": False
+            }), 400
 
     # check the link
     link = data.get("link") or None
     if item_type == "link":
         link = check_url(link)
         if not link:
-            return jsonify({"error": "Your link does not meet the required format"}), 400
+            return jsonify({
+            "messagetype": "error",
+            "message": "Entered link does not meet the required format.",
+            "display": True
+            }), 400
     
     # check the name
     name = normalize_name(data.get("name"))
     if not name:
-        return jsonify({"error": "The entered name does not meet the required format."}), 400
+        return jsonify({
+            "messagetype": "error",
+            "message": "Entered name does not meet the required format.",
+            "display": True
+            }), 400
     
     # check the color
     color = (data.get("color") or "white").strip()
@@ -215,12 +310,24 @@ def edit_item():
         conn.commit()
 
         if rows_edited == 0:
-            return jsonify({"error": "Item not found or not owned by user."}), 404
+            return jsonify({
+            "messagetype": "error",
+            "message": "Item not found.",
+            "display": True
+            }), 404
         
-        return jsonify({"message": "Item edited successfully."}), 200
+        return jsonify({
+            "messagetype": "success",
+            "message": "Item edited successfully.",
+            "display": True
+            }), 200
     except Exception as e:
         conn.rollback()
         current_app.logger.error(f"DB error occurred while editing an item: {e}")
-        return jsonify({"error": "DB error occurred while editing an item."}), 500
+        return jsonify({
+            "messagetype": "error",
+            "message": "A database error occured.",
+            "display": True
+            }), 500
     finally:
         conn.close()
