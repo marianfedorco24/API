@@ -1,9 +1,8 @@
-from flask import Blueprint, request, jsonify, make_response, url_for, redirect, current_app, abort
-import sqlite3, os, time
-from authlib.integrations.flask_client import OAuth
+from flask import Blueprint, request, jsonify, current_app
 from dotenv import load_dotenv
 from link_organizer.lorg_modules import *
 from assets import global_modules
+from functools import wraps
 
 # the base url
 url_base_api = "https://api.fedorco.dev"
@@ -36,24 +35,21 @@ load_dotenv()
 
 link_organizer_bp = Blueprint("link_organizer", __name__)
 
+def require_session(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        session_id = request.cookies.get("session")
+        if not session_id:
+            return jsonify({"messagetype": "error", "message": "No active session.", "display": False}), 401
+        uid = global_modules.validate_session(session_id)
+        if not uid:
+            return jsonify({"messagetype": "error", "message": "Invalid or expired session.", "display": False}), 401
+        return f(uid, *args, **kwargs)
+    return decorated_function
+
 @link_organizer_bp.route("/add-item", methods=["POST"])
-def add_item():
-    # validate the session id
-    session_id = request.cookies.get("session")
-    if not session_id:
-        return jsonify({
-            "messagetype": "error",
-            "message": "No active session.",
-            "display": False
-            }), 401
-    sid_validation = global_modules.validate_session(session_id)
-    if not sid_validation:
-        return jsonify({
-            "messagetype": "error",
-            "message": "Invalid or expired session.",
-            "display": False
-            }), 401
-    
+@require_session
+def add_item(uid):
     # get data
     data = request.get_json()
     if not data:
@@ -64,8 +60,9 @@ def add_item():
             }), 400
     
     # check the parent id
-    pid = (data.get("pid") or "0").strip()
-    if not pid.isdigit():
+    try:
+        pid = int(data.get("pid", 0))
+    except (ValueError, TypeError):
         pid = 0
 
     # check the item type
@@ -108,7 +105,7 @@ def add_item():
     conn = global_modules.get_db("link_organizer")
     try:
         c = conn.cursor()
-        c.execute("INSERT INTO user_items (pid, uid, type, icon, name, link, color) VALUES (?, ?, ?, ?, ?, ?, ?)", (int(pid), sid_validation, item_type, icon, name, link, color))
+        c.execute("INSERT INTO user_items (pid, uid, type, icon, name, link, color) VALUES (?, ?, ?, ?, ?, ?, ?)", (int(pid), uid, item_type, icon, name, link, color))
         conn.commit()
         return jsonify({
             "messagetype": "success",
@@ -120,31 +117,15 @@ def add_item():
         current_app.logger.error(f"DB error occurred while adding a new item: {e}")
         return jsonify({
             "messagetype": "error",
-            "message": "A database error occured.",
+            "message": "A database error occurred.",
             "display": True
             }), 500
     finally:
         conn.close()
 
 @link_organizer_bp.route("/get-items", methods=["GET"])
-def get_items():
-    # validate the session id
-    session_id = request.cookies.get("session")
-    current_app.logger.info(session_id)
-    if not session_id:
-        return jsonify({
-            "messagetype": "error",
-            "message": "No active session.",
-            "display": False
-            }), 401
-    sid_validation = global_modules.validate_session(session_id)
-    if not sid_validation:
-        return jsonify({
-            "messagetype": "error",
-            "message": "Invalid or expired session.",
-            "display": False
-            }), 401
-    
+@require_session
+def get_items(uid):
     # get pid
     pid = request.args.get("pid", "").strip()
     pid = pid if pid.isdigit() else ""
@@ -158,7 +139,7 @@ def get_items():
     conn = global_modules.get_db("link_organizer")
     try:
         c = conn.cursor()
-        c.execute("SELECT color, icon, iid, link, name, pid, type FROM user_items WHERE uid = ? AND pid = ? ", (sid_validation, pid))
+        c.execute("SELECT color, icon, iid, link, name, pid, type FROM user_items WHERE uid = ? AND pid = ? ", (uid, pid))
         rows = c.fetchall()
         items = [dict(row) for row in rows]
         return jsonify(items)
@@ -166,30 +147,15 @@ def get_items():
         current_app.logger.error(f"DB error occurred while loading items from the DB: {e}")
         return jsonify({
             "messagetype": "error",
-            "message": "A database error occured.",
+            "message": "A database error occurred.",
             "display": True
             }), 500
     finally:
         conn.close()
 
 @link_organizer_bp.route("/delete-item", methods=["DELETE"])
-def delete_item():
-    # validate the session id
-    session_id = request.cookies.get("session")
-    if not session_id:
-        return jsonify({
-            "messagetype": "error",
-            "message": "No active session.",
-            "display": False
-            }), 401
-    sid_validation = global_modules.validate_session(session_id)
-    if not sid_validation:
-        return jsonify({
-            "messagetype": "error",
-            "message": "Invalid or expired session.",
-            "display": False
-            }), 401
-    
+@require_session
+def delete_item(uid):
     # get item id
     iid = request.args.get("iid", "").strip()
     iid = iid if iid.isdigit() else ""
@@ -203,7 +169,7 @@ def delete_item():
     conn = global_modules.get_db("link_organizer")
     try:
         c = conn.cursor()
-        c.execute("DELETE FROM user_items WHERE uid = ? AND iid = ?", (sid_validation, int(iid)))
+        c.execute("DELETE FROM user_items WHERE uid = ? AND iid = ?", (uid, int(iid)))
         rows_deleted = c.rowcount
         conn.commit()
 
@@ -222,30 +188,15 @@ def delete_item():
         current_app.logger.error(f"DB error occurred while deleting an item from the DB: {e}")
         return jsonify({
             "messagetype": "error",
-            "message": "A database error occured.",
+            "message": "A database error occurred.",
             "display": True
             }), 500
     finally:
         conn.close()
 
 @link_organizer_bp.route("/edit-item", methods=["PATCH"])
-def edit_item():
-    # validate the session id
-    session_id = request.cookies.get("session")
-    if not session_id:
-        return jsonify({
-            "messagetype": "error",
-            "message": "No active session.",
-            "display": False
-            }), 401
-    sid_validation = global_modules.validate_session(session_id)
-    if not sid_validation:
-        return jsonify({
-            "messagetype": "error",
-            "message": "Invalid or expired session.",
-            "display": False
-            }), 401
-    
+@require_session
+def edit_item(uid):
     # get iid
     iid = request.args.get("iid", "").strip()
     iid = iid if iid.isdigit() else ""
@@ -305,7 +256,7 @@ def edit_item():
     conn = global_modules.get_db("link_organizer")
     try:
         c = conn.cursor()
-        c.execute("UPDATE user_items SET icon = ?, name = ?, link = ?, color = ? where uid = ? AND iid = ?", (icon, name, link, color, sid_validation, int(iid)))
+        c.execute("UPDATE user_items SET icon = ?, name = ?, link = ?, color = ? where uid = ? AND iid = ?", (icon, name, link, color, uid, int(iid)))
         rows_edited = c.rowcount
         conn.commit()
 
@@ -326,7 +277,7 @@ def edit_item():
         current_app.logger.error(f"DB error occurred while editing an item: {e}")
         return jsonify({
             "messagetype": "error",
-            "message": "A database error occured.",
+            "message": "A database error occurred.",
             "display": True
             }), 500
     finally:
