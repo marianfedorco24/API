@@ -5,7 +5,11 @@ import os
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback-unsafe-key")
-CORS(app, supports_credentials=True, origins=["https://fedorco.dev", "https://www.fedorco.dev"])
+CORS(app, supports_credentials=True, origins=[
+    "https://fedorco.dev",
+    "https://www.fedorco.dev",
+    "https://linkorganizer.fedorco.dev"
+])
 
 # Initialize oAuth
 init_oauth(app)
