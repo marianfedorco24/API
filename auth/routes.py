@@ -176,9 +176,12 @@ def signup():
         return response
     except Exception as e:
         conn.rollback()
-        current_app.logger.info(f"DB error: {e}")
-        return jsonify({"error": "Database error.",
-                        "Description:": str(e)}), 500
+        import traceback
+        current_app.logger.error("[SIGNUP] Database error:", exc_info=True)
+        return jsonify({
+            "error": "Database error.",
+            "description": str(e)
+        }), 500
     finally:
         conn.close()
 
