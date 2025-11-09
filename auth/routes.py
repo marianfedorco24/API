@@ -564,7 +564,12 @@ def google_callback():
     finally:
         conn.close()
 
-    response = make_response(redirect(url_base + "?s=g"))
+    redirect_proj = request.cookies.get("redirect")
+    if (redirect_proj == "linkorganizer"):
+        response = make_response(redirect("https://linkorganizer.fedorco.dev"))
+    else:
+        response = make_response(redirect(url_base))
+    
 
     response.set_cookie(
         "session",
