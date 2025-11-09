@@ -134,7 +134,7 @@ def signup():
             "subject": "Your fedorco.dev login code",
             "htmlContent": f"""
                 <div style="font-family:Arial, sans-serif; text-align:center;">
-                    <img src="https://fedorco.dev/logo/logo.png" alt="Fedorco Logo"
+                    <img src="https://fedorco.dev/logo/fedorcodev_full_logo_bg.svg" alt="Fedorco Logo"
                         style="width:10rem; margin-bottom:1rem;">
                     <p>Your one-time code is: <b>{code_str}</b><br>(valid for 5 minutes)</p>
                 </div>
