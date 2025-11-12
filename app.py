@@ -26,5 +26,9 @@ app.register_blueprint(user_bp, url_prefix="/user")
 from link_organizer.routes import link_organizer_bp  # Import your blueprint
 app.register_blueprint(link_organizer_bp, url_prefix="/linkorganizer")
 
+# Register the Strava API blueprint under /stravaapi URL prefix
+from strava_api.routes import strava_api_bp  # Import your blueprint
+app.register_blueprint(strava_api_bp, url_prefix="/stravaapi")
+
 if __name__ == "__main__":
     app.run(debug=True)
