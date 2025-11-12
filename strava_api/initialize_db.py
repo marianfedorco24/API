@@ -8,7 +8,7 @@ c = conn.cursor()
 
 c.execute("""
     CREATE TABLE IF NOT EXISTS cached_meals (
-        date INTEFEGER PRIMARY KEY,
+        date TEXT PRIMARY KEY,
         meal_num TEXT NOT NULL,
         meal_name TEXT NOT NULL
     )
