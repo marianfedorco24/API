@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-import os, requests
+import os, requests, re
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -26,6 +26,24 @@ def get_date():
     date_list = date_string.split("-") # splits the string into a list
 
     return f"{date_list[2]}.{date_list[1]}." # returns the formatted date
+
+
+def parse_onmouseover(attr: str):
+    m = re.search(r"onMouseOverTooltip\('(.*?)','(.*?)'\)", attr)
+    if not m:
+        return None
+    
+    subject, info = m.groups()
+    parts = info.split("~")
+
+    data = {"subject": subject.split(" ")[0]}  # Extract subject name without trailing space
+
+    for i in range(0, len(parts), 2):
+        key = parts[i].rstrip(":")
+        value = parts[i+1]
+        data[key] = value
+
+    return data
 
 def main():
     date_today = get_date()
@@ -76,17 +94,21 @@ def main():
 
         for tr in tr_list:
             date_cell = tr.select_one("td.KuvHeaderText")
-            if date_cell and date_cell.get_text(strip=True) == "24.11.":  # replace with date_today to get today's lessons
+            if date_cell and date_cell.get_text(strip=True) == date_today:
                 # when the row is found
                 lesson_cells = tr.find_all("td", recursive=False)
+                lessons_today = []
                 for lesson_cell in lesson_cells[1:]:  # skip the first cell (0th lesson)
-                    if not lesson_cell.find("span", class_="KuvBunkaRozvrhNadpis"):
-                        continue  # skip empty lesson cells
-                    lesson_name = lesson_cell.find("span", class_="KuvBunkaRozvrhNadpis").get_text(strip=True)
-                    lesson_room = str(lesson_cell.find("span", class_="KuvBunkaRozvrhText").decode_contents()).split("<br/>")[1]
-                    if len(lesson_room) > 30:
-                        lesson_room = "------"
-                    print(f"{lesson_name} | {lesson_room}")
+                    lesson_td = lesson_cell.find("td", attrs={"onmouseover": True})
+                    if not lesson_td:
+                        lessons_today.append(None)
+                        continue
+                    lesson_info = lesson_td.get("onmouseover", "")
+                    if lesson_info:
+                        lessons_today.append(parse_onmouseover(lesson_info))
+                    else:
+                        lessons_today.append(None)  # No lesson in this cell
+                print(lessons_today)
                 break  # exit after processing today's lessons
 
 
