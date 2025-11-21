@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-import time, os
+import os, requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -18,7 +18,18 @@ LOGIN_URL = "https://www.skolaonline.cz/prihlaseni/?"
 CHROMEDRIVER_PATH = None
 # CHROMEDRIVER_PATH = "/usr/bin/chromedriver"   # 
 
+def get_date():
+    response = requests.get("https://api.timezonedb.com/v2.1/get-time-zone?key=21NHSAQ7TSX4&format=json&by=zone&zone=Europe/Prague") # requests data from the API
+    date = response.json()["formatted"] # selects the correct format
+    date_string = date[0:10] # selects the needed part
+
+    date_list = date_string.split("-") # splits the string into a list
+
+    return f"{date_list[2]}.{date_list[1]}." # returns the formatted date
+
 def main():
+    date_today = get_date()
+
     # 1) Selenium options
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
@@ -61,12 +72,22 @@ def main():
         soup = BeautifulSoup(html, "lxml")
 
         tr_list = soup.select_one("tbody").find_all("tr", recursive=False)
-        print(len(tr_list))
+
+
         for tr in tr_list:
             date_cell = tr.select_one("td.KuvHeaderText")
-            if date_cell and date_cell.get_text(strip=True) == "12.11.":
-                print("Date match!")
-                print(tr)
+            if date_cell and date_cell.get_text(strip=True) == "24.11.":  # replace with date_today to get today's lessons
+                # when the row is found
+                lesson_cells = tr.find_all("td", recursive=False)
+                for lesson_cell in lesson_cells[1:]:  # skip the first cell (0th lesson)
+                    if not lesson_cell.find("span", class_="KuvBunkaRozvrhNadpis"):
+                        continue  # skip empty lesson cells
+                    lesson_name = lesson_cell.find("span", class_="KuvBunkaRozvrhNadpis").get_text(strip=True)
+                    lesson_room = str(lesson_cell.find("span", class_="KuvBunkaRozvrhText").decode_contents()).split("<br/>")[1]
+                    if len(lesson_room) > 30:
+                        lesson_room = "------"
+                    print(f"{lesson_name} | {lesson_room}")
+                break  # exit after processing today's lessons
 
 
 
