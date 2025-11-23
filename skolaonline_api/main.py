@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+from datetime import datetime
 import os, requests, re
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -14,6 +15,7 @@ USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
 
 LOGIN_URL = "https://www.skolaonline.cz/prihlaseni/?"
+class_times = ["08:00", "08:55", "10:00", "10:55", "11:50", "12:45", "14:00", "14:55"]
 
 CHROMEDRIVER_PATH = None
 # CHROMEDRIVER_PATH = "/usr/bin/chromedriver"   # 
@@ -27,6 +29,13 @@ def get_date():
 
     return f"{date_list[2]}.{date_list[1]}." # returns the formatted date
 
+def convert_time_string(t):
+    dt = datetime.strptime(t, "%H:%M").replace(
+        year=datetime.today().year,
+        month=datetime.today().month,
+        day=datetime.today().day
+    )
+    return int(dt.timestamp())
 
 def parse_onmouseover(attr: str):
     m = re.search(r"onMouseOverTooltip\('(.*?)','(.*?)'\)", attr)
@@ -36,7 +45,7 @@ def parse_onmouseover(attr: str):
     subject, info = m.groups()
     parts = info.split("~")
 
-    data = {"subject": subject.split(" ")[0]}  # Extract subject name without trailing space
+    data = {"subject": subject.split(" ")[0]}
 
     for i in range(0, len(parts), 2):
         key = parts[i].rstrip(":")
@@ -45,7 +54,7 @@ def parse_onmouseover(attr: str):
 
     return data
 
-def main():
+def download_data_to_database():
     date_today = get_date()
 
     # 1) Selenium options
@@ -55,6 +64,8 @@ def main():
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1280,720")
+    chrome_options.add_argument("--user-data-dir=/Users/test/selenium-profile") # Path to a custom user data directory - DO NOT FORGET TO CHANGE IT
+    chrome_options.add_argument("--profile-directory=Default")  # Use existing Chrome profile to avoid repeated logins
 
     # 2) Initialize WebDriver
     if CHROMEDRIVER_PATH:
@@ -91,13 +102,13 @@ def main():
 
         tr_list = soup.select_one("tbody").find_all("tr", recursive=False)
 
-
+        lessons_today = []
         for tr in tr_list:
             date_cell = tr.select_one("td.KuvHeaderText")
-            if date_cell and date_cell.get_text(strip=True) == date_today:
+            if date_cell and date_cell.get_text(strip=True) == "24.11.":  # replace with date_today for dynamic date
                 # when the row is found
                 lesson_cells = tr.find_all("td", recursive=False)
-                lessons_today = []
+                
                 for lesson_cell in lesson_cells[1:]:  # skip the first cell (0th lesson)
                     lesson_td = lesson_cell.find("td", attrs={"onmouseover": True})
                     if not lesson_td:
@@ -110,10 +121,22 @@ def main():
                         lessons_today.append(None)  # No lesson in this cell
                 print(lessons_today)
                 break  # exit after processing today's lessons
+        
+        data_database = []
+        for lesson in lessons_today:
+            class_time = 0
+            if lesson.get("Čas výuky"):
+                class_time = convert_time_string(lesson["Čas výuky"].split(" - ")[0])
+            else:
+                class_num = lesson["Den (vyuč. hodina)"].split(" ")[-1][1]
+                class_time = convert_time_string(class_times[int(class_num)-1])
+            print(lesson["subject"])
+            print(class_time)
+
 
 
 
     finally:
         driver.quit()
 
-main()
+download_data_to_database()
