@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
 
 load_dotenv()
 USERNAME = os.getenv("USERNAME")
@@ -27,7 +28,7 @@ def get_date():
 
     date_list = date_string.split("-") # splits the string into a list
 
-    return f"{date_list[2]}.{date_list[1]}." # returns the formatted date
+    return f"{int(date_list[2])}.{int(date_list[1])}." # returns the formatted date
 
 def convert_time_string(t):
     dt = datetime.strptime(t, "%H:%M").replace(
@@ -36,6 +37,20 @@ def convert_time_string(t):
         day=datetime.today().day
     )
     return int(dt.timestamp())
+
+# uses BeautifulSoup to find the closest parent with a matching class
+def get_matching_parent_class(el, class_variants):
+    parent = el.parent
+    while parent is not None:
+        classes = parent.get("class", [])
+        # classes can be a list or a string
+        if isinstance(classes, str):
+            classes = classes.split()
+        for cls in class_variants:
+            if cls in classes:
+                return cls
+        parent = parent.parent
+    return None
 
 def parse_onmouseover(attr: str):
     m = re.search(r"onMouseOverTooltip\('(.*?)','(.*?)'\)", attr)
@@ -54,7 +69,20 @@ def parse_onmouseover(attr: str):
 
     return data
 
-def download_data_to_database():
+def get_today_row_class(html, date_today):
+    soup = BeautifulSoup(html, "xml")
+    tr_list = soup.find_all("tr")
+    # Find the row corresponding to today's date
+    for tr in tr_list:
+        date_cell = tr.select_one("td.KuvHeaderText")
+        # Check if the date cell matches today's date
+        if date_cell and date_cell.get_text(strip=True) == date_today:
+            # Get all rows for today (could be multiple if there are extra rows)
+            row_class = get_matching_parent_class(date_cell, ["RowOdd", "RowEven"])
+            return row_class
+    return None
+
+def get_today_lessons():
     date_today = get_date()
 
     # 1) Selenium options
@@ -98,31 +126,20 @@ def download_data_to_database():
         # 7) Parse HTML of the timetable
         timetable = driver.find_element(By.ID, "ctl00_main_boxKalendar_ctl00_ctl04")
         html = timetable.get_attribute("innerHTML")
-        soup = BeautifulSoup(html, "lxml")
 
-        tr_list = soup.select_one("tbody").find_all("tr", recursive=False)
+        row_class = get_today_row_class(html, date_today)
 
-        lessons_today = []
-        for tr in tr_list:
-            date_cell = tr.select_one("td.KuvHeaderText")
-            if date_cell and date_cell.get_text(strip=True) == "24.11.":  # replace with date_today for dynamic date
-                # when the row is found
-                lesson_cells = tr.find_all("td", recursive=False)
-                
-                for lesson_cell in lesson_cells[1:]:  # skip the first cell (0th lesson)
-                    lesson_td = lesson_cell.find("td", attrs={"onmouseover": True})
-                    if not lesson_td:
-                        lessons_today.append(None)
-                        continue
-                    lesson_info = lesson_td.get("onmouseover", "")
-                    if lesson_info:
-                        lessons_today.append(parse_onmouseover(lesson_info))
-                    else:
-                        lessons_today.append(None)  # No lesson in this cell
-                print(lessons_today)
-                break  # exit after processing today's lessons
+        rows_today = timetable.find_elements(By.CSS_SELECTOR, f".{row_class}")
+        lesson_cells = []
+        for row in rows_today:
+            lesson_cells.extend(row.find_elements(By.CLASS_NAME, "DctInnerTableType10DataTD"))
+            lesson_cells.extend(row.find_elements(By.CLASS_NAME, "KuvSkolniAkceHodina"))
+            lesson_cells.extend(row.find_elements(By.CLASS_NAME, "KuvSuplujiciHodina"))
         
-        data_database = []
+        
+        lesson_cells_sorted = sorted(lesson_cells, key=lambda el: el.location['x'])
+        lessons_today = [parse_onmouseover(cell.get_attribute("onmouseover")) for cell in lesson_cells_sorted if cell.get_attribute("onmouseover")]
+
         for lesson in lessons_today:
             class_time = 0
             if lesson.get("Čas výuky"):
@@ -130,13 +147,12 @@ def download_data_to_database():
             else:
                 class_num = lesson["Den (vyuč. hodina)"].split(" ")[-1][1]
                 class_time = convert_time_string(class_times[int(class_num)-1])
-            print(lesson["subject"])
-            print(class_time)
+            
+            lesson["timestamp"] = class_time
 
-
-
+        return lessons_today
 
     finally:
         driver.quit()
 
-download_data_to_database()
+print(get_today_lessons())
