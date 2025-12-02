@@ -1,5 +1,4 @@
 from dotenv import load_dotenv
-from datetime import datetime
 import os, requests, re
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -10,6 +9,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from pathlib import Path
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 
 BASE_DIR = Path(__file__).resolve().parent  # adjust if needed
@@ -24,13 +25,8 @@ class_times = ["08:00", "08:55", "10:00", "10:55", "11:50", "12:45", "14:00", "1
 CHROMEDRIVER_PATH = "/usr/bin/chromedriver"
 
 def get_date():
-    response = requests.get("https://api.timezonedb.com/v2.1/get-time-zone?key=21NHSAQ7TSX4&format=json&by=zone&zone=Europe/Prague") # requests data from the API
-    date = response.json()["formatted"] # selects the correct format
-    date_string = date[0:10] # selects the needed part
-
-    date_list = date_string.split("-") # splits the string into a list
-
-    return f"{int(date_list[2])}.{int(date_list[1])}." # returns the formatted date
+    now = datetime.now(ZoneInfo("Europe/Prague"))
+    return now.strftime("%-d.%-m.")
 
 def convert_time_string(t):
     dt = datetime.strptime(t, "%H:%M").replace(

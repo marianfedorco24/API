@@ -1,6 +1,8 @@
 import requests, sys, os
 from json import loads
 from dotenv import load_dotenv
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 sys.stdout.reconfigure(encoding='utf-8')
 load_dotenv()
@@ -60,13 +62,8 @@ def get_data_strava(login_data = login_data, login_headers = login_headers):
     return raw_src
 
 def get_date():
-    response = requests.get("https://api.timezonedb.com/v2.1/get-time-zone?key=21NHSAQ7TSX4&format=json&by=zone&zone=Europe/Prague") # requests data from the API
-    date = response.json()["formatted"] # selects the correct format
-    date_string = date[0:10] # selects the needed part
-
-    date_list = date_string.split("-") # splits the string into a list
-
-    return f"{date_list[2]}. {date_list[1]}. {date_list[0]}" # returns the formatted date
+    now = datetime.now(ZoneInfo("Europe/Prague"))
+    return now.strftime("%d. %m. %Y")
 
 def get_today_meal():
     date = get_date()
@@ -77,3 +74,5 @@ def get_today_meal():
     if not clean_src["date"] == date:
         return {"date": date, "meal_num": "------", "meal_name": "No meal ordered."}
     return clean_src
+
+print(get_today_meal())
