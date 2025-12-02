@@ -21,8 +21,7 @@ PASSWORD = os.getenv("PASSWORD")
 LOGIN_URL = "https://www.skolaonline.cz/prihlaseni/?"
 class_times = ["08:00", "08:55", "10:00", "10:55", "11:50", "12:45", "14:00", "14:55"]
 
-CHROMEDRIVER_PATH = None
-# CHROMEDRIVER_PATH = "/usr/bin/chromedriver"   # 
+CHROMEDRIVER_PATH = "/usr/bin/chromedriver"
 
 def get_date():
     response = requests.get("https://api.timezonedb.com/v2.1/get-time-zone?key=21NHSAQ7TSX4&format=json&by=zone&zone=Europe/Prague") # requests data from the API
@@ -72,7 +71,7 @@ def parse_onmouseover(attr: str):
     return data
 
 def get_today_row_class(html, date_today):
-    soup = BeautifulSoup(html, "xml")
+    soup = BeautifulSoup(html, "lxml")
     tr_list = soup.find_all("tr")
     # Find the row corresponding to today's date
     for tr in tr_list:
@@ -89,13 +88,12 @@ def get_today_lessons():
 
     # 1) Selenium options
     chrome_options = Options()
+    chrome_options.binary_location = "/usr/bin/chromium-browser"
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1280,720")
-    chrome_options.add_argument("--user-data-dir=/Users/test/selenium-profile") # Path to a custom user data directory - DO NOT FORGET TO CHANGE IT
-    chrome_options.add_argument("--profile-directory=Default")  # Use existing Chrome profile to avoid repeated logins
 
     # 2) Initialize WebDriver
     if CHROMEDRIVER_PATH:
