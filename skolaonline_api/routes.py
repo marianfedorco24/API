@@ -29,8 +29,11 @@ def fetch_next_class_db(time_curr, c):
     row = c.fetchone()
     if row:
         next_class = dict(row)
-        time = datetime.fromtimestamp(next_class["timestamp"], tz=ZoneInfo("Europe/Prague"))
-        next_class["timestamp"] = time.strftime("%H:%M")
+        timestamp = datetime.fromtimestamp(next_class["timestamp"], tz=ZoneInfo("Europe/Prague"))
+        less_time = timestamp.strftime("%H:%M")
+        if less_time == "00:00":
+            less_time = "---"
+        next_class["timestamp"] = less_time
         return next_class
     return None
 
