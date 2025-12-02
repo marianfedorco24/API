@@ -28,7 +28,10 @@ def fetch_next_class_db(time_curr, c):
     c.execute("SELECT * FROM cached_classes WHERE timestamp > ? ORDER BY timestamp ASC LIMIT 1", (time_curr,))
     row = c.fetchone()
     if row:
-        return dict(row)
+        next_class = dict(row)
+        time = datetime.fromtimestamp(next_class["timestamp"], tz=ZoneInfo("Europe/Prague"))
+        next_class["timestamp"] = time.strftime("%H:%M")
+        return next_class
     return None
 
 @skolaonline_api_bp.route("/get-next-class", methods=["GET"])
