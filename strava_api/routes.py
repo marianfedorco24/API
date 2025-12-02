@@ -4,7 +4,7 @@ from strava_api.main import get_today_meal, get_date
 import os, sqlite3
 
 strava_api_bp = Blueprint("strava_api", __name__)
-load_dotenv()
+load_dotenv(override=True)
 EXPECTED_API_KEY = os.getenv("API_KEY")
 if not EXPECTED_API_KEY:
     raise ValueError("API_KEY not found in environment variables")

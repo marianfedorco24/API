@@ -30,5 +30,9 @@ app.register_blueprint(link_organizer_bp, url_prefix="/linkorganizer")
 from strava_api.routes import strava_api_bp  # Import your blueprint
 app.register_blueprint(strava_api_bp, url_prefix="/stravaapi")
 
+# Register the Skolaonline API blueprint under /skolaonlineapi URL prefix
+from skolaonline_api.routes import skolaonline_api_bp  # Import your blueprint
+app.register_blueprint(skolaonline_api_bp, url_prefix="/skolaonlineapi")
+
 if __name__ == "__main__":
     app.run(debug=True)

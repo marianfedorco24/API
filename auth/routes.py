@@ -8,7 +8,7 @@ url_base_api = "https://api.fedorco.dev"
 url_base = "https://fedorco.dev"
 brevo_api_url = "https://api.brevo.com/v3/smtp/email"
 
-load_dotenv()
+load_dotenv(override=True)
 
 # email sending variables
 SMTP_HOST = "smtp-relay.brevo.com"

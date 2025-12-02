@@ -8,9 +8,8 @@ c = conn.cursor()
 
 c.execute("""
     CREATE TABLE IF NOT EXISTS cached_classes (
-        timefrom INTEGER,
-        timeto INTEGER,
-        class_name TEXT,
+        timestamp INTEGER,
+        subject TEXT,
         classroom TEXT
     )
 """)

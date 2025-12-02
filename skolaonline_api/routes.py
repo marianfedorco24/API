@@ -1,47 +1,69 @@
 from flask import Blueprint, request, jsonify, current_app
 from dotenv import load_dotenv
-from strava_api.main import get_today_meal, get_date
 import os, sqlite3
+from skolaonline_api.main import get_today_lessons
+from time import time
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
-strava_api_bp = Blueprint("strava_api", __name__)
-load_dotenv()
+skolaonline_api_bp = Blueprint("skolaonline_api", __name__)
+load_dotenv(override=True)
 EXPECTED_API_KEY = os.getenv("API_KEY")
 if not EXPECTED_API_KEY:
     raise ValueError("API_KEY not found in environment variables")
-db_path = os.path.join(os.path.dirname(__file__), "strava_api_cache.db")
+db_path = os.path.join(os.path.dirname(__file__), "skolaonline_api_cache.db")
 
 def get_db():
     conn = sqlite3.connect(db_path, timeout=5)
     conn.row_factory = sqlite3.Row
     return conn
 
-@strava_api_bp.route("/get-today-meal", methods=["GET"])
-def get_meal():
-    # API Key validation
+def get_next_midnight_timestamp():
+    now = datetime.now(ZoneInfo("Europe/Prague"))
+    next_midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    timestamp = int(next_midnight.timestamp())
+    return timestamp
+
+def fetch_next_class_db(time_curr, c):
+    c.execute("SELECT * FROM cached_classes WHERE timestamp > ? ORDER BY timestamp ASC LIMIT 1", (time_curr,))
+    row = c.fetchone()
+    if row:
+        return dict(row)
+    return None
+
+@skolaonline_api_bp.route("/get-next-class", methods=["GET"])
+def get_next_class():
     api_key = request.headers.get("x-api-key")
     if api_key != EXPECTED_API_KEY:
         return jsonify({"error": "Unauthorized"}), 401
+
+    time_curr = time()
     conn = get_db()
     try:
         c = conn.cursor()
-        c.execute("SELECT * FROM cached_meals WHERE date = ?", (get_date(),))
-        row = c.fetchone()
-        if row:
-            current_app.logger.info("Cache hit - returning cached meal data")
-            return jsonify({
-                "date": row["date"],
-                "meal_num": row["meal_num"],
-                "meal_name": row["meal_name"]
-            })
+        next_class = fetch_next_class_db(time_curr, c)
+        if next_class:
+            return jsonify(next_class)
         else:
-            current_app.logger.info("Cache miss - fetching new meal data")
-            meal_data = get_today_meal()
-            c.execute("INSERT INTO cached_meals (date, meal_num, meal_name) VALUES (?, ?, ?)", (meal_data["date"], meal_data["meal_num"], meal_data["meal_name"]))
+            current_app.logger.info("Cache miss - fetching new data")
+            classes_new = get_today_lessons()
+            classes_new.append({
+                "subject": "---",
+                "Učebna": "---",
+                "timestamp": get_next_midnight_timestamp()
+            })
+            for lesson in classes_new:
+                c.execute(
+                    "INSERT INTO cached_classes (subject, classroom, timestamp) VALUES (?, ?, ?)",
+                    (lesson["subject"], lesson["Učebna"], lesson["timestamp"])
+                )
             conn.commit()
-        return jsonify(meal_data)
-    except Exception as e:
-        conn.rollback()
-        current_app.logger.error(f"Database error: {e}")
-        return jsonify({"error": "Internal Server Error"}), 500
+            next_class = fetch_next_class_db(time_curr, c)
+            if next_class:
+                return jsonify(next_class)
+            else:
+                return jsonify({"error": "No class data available"}), 500
+            
     finally:
         conn.close()
+

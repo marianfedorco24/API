@@ -31,7 +31,7 @@ allowed_icons = [
     "socialstudies"
 ]
 
-load_dotenv()
+load_dotenv(override=True)
 
 link_organizer_bp = Blueprint("link_organizer", __name__)
 

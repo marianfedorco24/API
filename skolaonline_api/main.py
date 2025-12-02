@@ -9,9 +9,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException
+from pathlib import Path
 
-load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent  # adjust if needed
+load_dotenv(BASE_DIR / ".env", override=True)
+
 USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
 
@@ -38,7 +41,6 @@ def convert_time_string(t):
     )
     return int(dt.timestamp())
 
-# uses BeautifulSoup to find the closest parent with a matching class
 def get_matching_parent_class(el, class_variants):
     parent = el.parent
     while parent is not None:
@@ -154,5 +156,3 @@ def get_today_lessons():
 
     finally:
         driver.quit()
-
-print(get_today_lessons())
