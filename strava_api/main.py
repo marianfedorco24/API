@@ -74,5 +74,3 @@ def get_today_meal():
     if not clean_src["date"] == date:
         return {"date": date, "meal_num": "------", "meal_name": "No meal ordered."}
     return clean_src
-
-print(get_today_meal())

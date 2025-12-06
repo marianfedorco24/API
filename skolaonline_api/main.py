@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-import os, requests, re
+import os, re
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -137,6 +137,7 @@ def get_today_lessons():
         lessons_today = [parse_onmouseover(cell.get_attribute("onmouseover")) for cell in lesson_cells_sorted if cell.get_attribute("onmouseover")]
 
         for lesson in lessons_today:
+            lesson["Učebna"] = re.findall(r"\((.*?)\)", lesson["Učebna"])[0] if "Učebna" in lesson else "---"
             class_time = 0
             if lesson.get("Čas výuky"):
                 class_time = convert_time_string(lesson["Čas výuky"].split(" - ")[0])
