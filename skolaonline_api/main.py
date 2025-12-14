@@ -90,6 +90,7 @@ def get_today_lessons():
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1280,720")
+    chrome_options.add_argument("--user-data-dir=/home/selenium/chrome-profile")
 
     # 2) Initialize WebDriver
     if CHROMEDRIVER_PATH:
